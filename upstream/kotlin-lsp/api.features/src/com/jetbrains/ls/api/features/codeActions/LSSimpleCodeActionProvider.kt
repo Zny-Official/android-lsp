@@ -1,0 +1,95 @@
+// Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+package com.jetbrains.ls.api.features.codeActions
+
+import com.intellij.openapi.application.readAction
+import com.intellij.openapi.vfs.VirtualFile
+import com.jetbrains.ls.api.core.LSAnalysisContext
+import com.jetbrains.ls.api.core.LSServer
+import com.jetbrains.ls.api.core.util.findVirtualFile
+import com.jetbrains.ls.api.core.withAnalysisContextAndFileSettings
+import com.jetbrains.ls.api.features.commands.LSCommandDescriptor
+import com.jetbrains.ls.api.features.commands.LSCommandDescriptorProvider
+import com.jetbrains.ls.api.features.commands.document.LSDocumentCommandExecutor
+import com.jetbrains.lsp.implementation.LspHandlerContext
+import com.jetbrains.lsp.protocol.CodeAction
+import com.jetbrains.lsp.protocol.CodeActionKind
+import com.jetbrains.lsp.protocol.CodeActionParams
+import com.jetbrains.lsp.protocol.Command
+import com.jetbrains.lsp.protocol.DocumentUri
+import com.jetbrains.lsp.protocol.LSP
+import com.jetbrains.lsp.protocol.TextEdit
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.encodeToJsonElement
+
+abstract class LSSimpleCodeActionProvider<P : Any> : LSCodeActionProvider, LSCommandDescriptorProvider {
+    protected abstract val title: String
+    protected abstract val kind: CodeActionKind
+    protected open val isPreferred: Boolean? = null
+    protected open val commandName: String get() = title
+
+    final override val providesOnlyKinds: Set<CodeActionKind> get() = setOf(kind)
+
+    abstract val dataSerializer: KSerializer<P>
+
+    context(server: LSServer, analysisContext: LSAnalysisContext)
+    abstract fun getData(file: VirtualFile, params: CodeActionParams): P?
+
+    context(server: LSServer, analysisContext: LSAnalysisContext)
+    abstract fun execute(file: VirtualFile, data: P): List<TextEdit>
+
+    context(server: LSServer, handlerContext: LspHandlerContext)
+    override fun getCodeActions(params: CodeActionParams): Flow<CodeAction> = flow {
+        val documentUri = params.textDocument.uri
+        val params = server.withAnalysisContextAndFileSettings(documentUri.uri) {
+            readAction {
+                val virtualFile = documentUri.findVirtualFile() ?: return@readAction null
+                getData(virtualFile, params)
+            }
+        } ?: return@flow
+        val arguments = buildList {
+            add(LSP.json.encodeToJsonElement(documentUri))
+            if (params != NoData) {
+                add(LSP.json.encodeToJsonElement(dataSerializer, params))
+            }
+        }
+        val action = CodeAction(
+            title = title,
+            kind = kind,
+            isPreferred = isPreferred,
+            command = Command(
+                title = title,
+                command = commandName,
+                arguments = arguments,
+            ),
+        )
+        emit(action)
+    }
+
+    @Serializable
+    data object NoData
+
+    override val commandDescriptors: List<LSCommandDescriptor> get() = listOf(commandDescriptor)
+
+    private val commandDescriptor = LSCommandDescriptor(
+        title = title,
+        name = commandName,
+        executor = LSSimpleDocumentCommandExecutor(),
+    )
+
+    internal inner class LSSimpleDocumentCommandExecutor : LSDocumentCommandExecutor {
+        context(server: LSServer, handlerContext: LspHandlerContext)
+        override suspend fun executeForDocument(documentUri: DocumentUri, otherArgs: List<JsonElement>): List<TextEdit> {
+            return server.withAnalysisContextAndFileSettings(documentUri.uri) {
+                readAction {
+                    val virtualFile = documentUri.findVirtualFile() ?: return@readAction emptyList()
+                    val argument = otherArgs.firstOrNull()?.let { LSP.json.decodeFromJsonElement(dataSerializer, it) } ?: (NoData as P)
+                    execute(virtualFile, argument)
+                }
+            }
+        }
+    }
+}

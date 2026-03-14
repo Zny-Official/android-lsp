@@ -1,0 +1,13 @@
+{
+  // Note: you'll need to install "Kotlin" extension via Zed extensions: https://github.com/zed-extensions/kotlin
+  // See the README.md file for more information on how to configure kotlin-lsp in Zed
+  // Also note: diagnostics do not work because they are pull-based in our implementation, but the editor expects them to be push-based
+  // Things like navigation, completion, find references and code actions like organize imports do.
+  "languages": {
+    "Kotlin": {
+      "language_servers": [
+        "kotlin-lsp"
+      ]
+    }
+  }
+}
