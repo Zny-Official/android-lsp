@@ -1,3 +1,12 @@
+/*
+ * Copyright (c) 2026 Zny-Official
+ *
+ * Licensed under the GNU Lesser General Public License v3.0
+ * See LICENSE.txt for details.
+ *
+ * Inspired by: https://github.com/Kotlin/kotlin-lsp/issues/97#issuecomment-3957021983
+ * Original approach: bash script for attaching source JARs from Gradle cache
+ */
 package io.yamsergey.adt.workspace.kotlin.service;
 
 import java.io.IOException;

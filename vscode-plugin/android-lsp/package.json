@@ -1,0 +1,212 @@
+{
+  "name": "android-lsp",
+  "displayName": "Android LSP",
+  "description": "Language Support for Android/Kotlin with automatic workspace.json generation",
+  "author": "Zny-Official",
+  "publisher": "android-lsp",
+  "icon": "icons/android-lsp.svg",
+  "version": "1.0.0",
+  "license": "LGPL-3.0",
+  "repository": {
+    "url": "https://github.com/your-repo/android-lsp"
+  },
+  "engines": {
+    "vscode": "^1.96.0",
+    "node": "^22.20.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Debuggers"
+  ],
+  "main": "./dist/extension",
+  "activationEvents": [
+    "onLanguage:kotlin",
+    "workspaceContains:**/build.gradle*",
+    "workspaceContains:**/settings.gradle*",
+    "workspaceContains:**/AndroidManifest.xml"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "kotlin",
+        "aliases": [
+          "Kotlin",
+          "kotlin"
+        ],
+        "extensions": [
+          ".kt",
+          ".kts"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "kotlin",
+        "scopeName": "source.kotlin",
+        "path": "./syntaxes/kotlin.tmLanguage.json",
+        "unbalancedBracketScopes": [
+          "keyword.operator.kotlin"
+        ]
+      }
+    ],
+    "breakpoints": [
+      {
+        "language": "kotlin"
+      }
+    ],
+    "debuggers": [
+      {
+        "type": "android_debugger",
+        "label": "Android Debugger",
+        "languages": [
+          "kotlin"
+        ],
+        "configurationAttributes": {}
+      }
+    ],
+    "configuration": [
+      {
+        "title": "Android LSP",
+        "properties": {
+          "androidLSP.dev.serverPort": {
+            "type": "number",
+            "default": -1,
+            "description": "Port for the locally started Kotlin Language Server to listen on. -1 to start the bundled LSP"
+          },
+          "androidLSP.jrePathToRunLsp": {
+            "type": "string",
+            "default": null,
+            "description": "Path of the JRE used to run the Kotlin LSP. Requires version 21 or higher. If unspecified, the bundled JetBrains Runtime is used."
+          },
+          "androidLSP.additionalJvmArgs": {
+            "type": "array",
+            "default": [],
+            "description": "Additional JVM arguments to pass to the LSP server"
+          },
+          "androidLSP.jdkForSymbolResolution": {
+            "type": "string",
+            "default": null,
+            "description": "Path of the JDK for symbol resolution"
+          },
+          "androidLSP.trace.server": {
+            "scope": "window",
+            "type": "string",
+            "enum": [
+              "off",
+              "messages",
+              "verbose"
+            ],
+            "default": "off",
+            "description": "Traces the communication between VS Code and the language server."
+          },
+          "androidLSP.adtCliPath": {
+            "type": "string",
+            "default": null,
+            "description": "Path to ADT CLI. If not specified, uses the bundled ADT CLI."
+          }
+        }
+      },
+      {
+        "title": "Inlay Hints",
+        "properties": {
+          "androidLSP.hints.types.property": {
+            "type": "boolean",
+            "default": true,
+            "description": "Show inlay hints for property types"
+          },
+          "androidLSP.hints.types.variable": {
+            "type": "boolean",
+            "default": true,
+            "description": "Show inlay hints for local variable types"
+          },
+          "androidLSP.hints.type.function.return": {
+            "type": "boolean",
+            "default": true,
+            "description": "Show inlay hints for function return types"
+          },
+          "androidLSP.hints.type.function.parameter": {
+            "type": "boolean",
+            "default": true,
+            "description": "Show inlay hints for function parameter types"
+          },
+          "androidLSP.hints.settings.lambda.return": {
+            "type": "boolean",
+            "default": true,
+            "description": "Show inlay hints for return expressions"
+          },
+          "androidLSP.hints.lambda.receivers.parameters": {
+            "type": "boolean",
+            "default": true,
+            "description": "Show inlay hints for implicit receivers and parameters"
+          },
+          "androidLSP.hints.settings.value.ranges": {
+            "type": "boolean",
+            "default": true,
+            "description": "Show inlay hints for ranges"
+          },
+          "androidLSP.hints.value.kotlin.time": {
+            "type": "boolean",
+            "default": true,
+            "description": "Show kotlin.time package warning inlay hints"
+          },
+          "androidLSP.hints.parameters": {
+            "type": "boolean",
+            "default": true,
+            "description": "Show parameter names"
+          },
+          "androidLSP.hints.parameters.compiled": {
+            "type": "boolean",
+            "default": true,
+            "description": "Show compiled parameter names"
+          },
+          "androidLSP.hints.parameters.excluded": {
+            "type": "boolean",
+            "default": false,
+            "description": "Show excluded parameter names"
+          },
+          "androidLSP.hints.call.chains": {
+            "type": "boolean",
+            "default": false,
+            "description": "Function return type in call chains"
+          }
+        }
+      }
+    ],
+    "commands": [
+      {
+        "command": "androidLsp.generateWorkspace",
+        "category": "Android LSP",
+        "title": "Generate workspace.json for Android project"
+      },
+      {
+        "command": "androidLsp.restartLsp",
+        "category": "Android LSP",
+        "title": "Restart LSP server"
+      },
+      {
+        "command": "androidLsp.syncGradle",
+        "category": "Android LSP",
+        "title": "Sync Gradle and regenerate workspace.json"
+      }
+    ]
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.8",
+    "@types/vscode": "^1.96.0",
+    "ts-loader": "^9.5.2",
+    "typescript": "^5.7.2",
+    "webpack": "^5.100.2",
+    "webpack-cli": "^6.0.1"
+  },
+  "dependencies": {
+    "vscode-languageclient": "9.0.1"
+  },
+  "scripts": {
+    "compile": "webpack --mode development",
+    "watch": "webpack --mode development --watch",
+    "vscode:prepublish": "npm run package && npm run unpack-server",
+    "package": "webpack --mode production --devtool hidden-source-map",
+    "unpack-server": "rm -rf server && mkdir -p server && case \"$LSP_ZIP_PATH\" in *.tar.gz) tar -xzf \"$LSP_ZIP_PATH\" --strip-components=1 -C server ;; *.zip) unzip -q -o -- \"$LSP_ZIP_PATH\" -d server ;; *.sit) mkdir server.tmp && unzip -q -o -- \"$LSP_ZIP_PATH\" -d server.tmp && rmdir server && mv server.tmp/* server && rm -rf server.tmp ;; *) echo \"Unsupported archive type: $LSP_ZIP_PATH\"; exit 1 ;; esac"
+  }
+}

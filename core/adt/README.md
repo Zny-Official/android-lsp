@@ -62,3 +62,14 @@ adt-cli/bin/adt-cli resolve /path/to/android/project --variants
 - **[tools-android](tools-android/)** - Core analysis library
 
 See individual module READMEs for detailed documentation.
+
+## Changelog
+
+### 2026-03-15 - Compose Compiler Plugin Support
+
+Added automatic Compose compiler plugin resolution and source JAR attachment for Kotlin LSP.
+
+- `ComposePluginResolver` - Automatically resolves Compose compiler plugin from Gradle cache
+- `SourceJarResolver` - Attaches source JARs from Gradle cache for better IDE experience
+
+Inspired by [Kotlin LSP Issue #97](https://github.com/Kotlin/kotlin-lsp/issues/97#issuecomment-3957021983)
