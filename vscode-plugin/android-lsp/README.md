@@ -1,289 +1,291 @@
-# Android LSP
+# Android LSP - VSCode Extension
 
-一个为 Android/Kotlin 项目提供语言支持的 VSCode 插件，集成 JetBrains Kotlin LSP 和 ADT (Android Development Tools)。
+[← Back to Main Project](../../README.md) | [中文](README_CN.md) | [English](README.md)
 
-## 功能特性
+A VSCode extension providing language support for Android/Kotlin projects, integrating JetBrains Kotlin LSP and ADT (Android Development Tools).
 
-- ✅ **自动识别 Android 项目** - 检测 Gradle 配置和 AndroidManifest.xml
-- ✅ **自动生成 workspace.json** - 使用 ADT CLI 解析 Android 项目依赖
-- ✅ **代码补全** - Kotlin/Android 代码智能补全
-- ✅ **代码导航** - 跳转到定义、引用查找
-- ✅ **代码重构** - 重命名、提取方法等
-- ✅ **调试支持** - Kotlin/Android 程序调试
-- ✅ **开箱即用** - 内嵌 Kotlin LSP Server 和 JRE
+## Features
 
-## 目录结构
+- ✅ **Automatic Android Project Detection** - Detects Gradle configuration and AndroidManifest.xml
+- ✅ **Automatic workspace.json Generation** - Uses ADT CLI to parse Android project dependencies
+- ✅ **Code Completion** - Intelligent Kotlin/Android code completion
+- ✅ **Code Navigation** - Go to definition, find references
+- ✅ **Code Refactoring** - Rename, extract method, etc.
+- ✅ **Debug Support** - Kotlin/Android program debugging
+- ✅ **Out of the Box** - Bundled Kotlin LSP Server and JRE
+
+## Directory Structure
 
 ```
 android-lsp/
-├── src/                    # TypeScript 源代码
-│   ├── extension.ts        # 插件入口
-│   ├── lspClient.ts        # LSP 客户端
-│   ├── projectDetector.ts  # Android 项目检测
-│   ├── adtManager.ts       # ADT CLI 管理
-│   └── workspaceGenerator.ts # workspace.json 生成
-├── server/                 # Kotlin LSP Server (打包时生成)
-├── adt-cli/                # ADT CLI 工具 (打包时复制)
-├── dist/                   # 编译输出
-├── syntaxes/               # Kotlin 语法高亮
-└── icons/                  # 图标资源
+├── src/                    # TypeScript source code
+│   ├── extension.ts        # Extension entry point
+│   ├── lspClient.ts        # LSP client
+│   ├── projectDetector.ts  # Android project detection
+│   ├── adtManager.ts       # ADT CLI management
+│   └── workspaceGenerator.ts # workspace.json generation
+├── server/                 # Kotlin LSP Server (generated during packaging)
+├── adt-cli/                # ADT CLI tool (copied during packaging)
+├── dist/                   # Compiled output
+├── syntaxes/               # Kotlin syntax highlighting
+└── icons/                  # Icon resources
 ```
 
-## 编译方式
+## Build Instructions
 
-### 环境要求
+### Requirements
 
-- Node.js 22.x 或更高版本
-- npm 10.x 或更高版本
-- Java 21+ (用于 ADT CLI)
+- Node.js 22.x or higher
+- npm 10.x or higher
+- Java 21+ (for ADT CLI)
 
-### 安装依赖
+### Install Dependencies
 
 ```bash
 cd vscode-plugin/android-lsp
 npm install
 ```
 
-### 开发编译
+### Development Build
 
 ```bash
 npm run compile
 ```
 
-### 生产编译
+### Production Build
 
 ```bash
 npm run package
 ```
 
-### 打包 VSIX
+### Package VSIX
 
-打包前需要准备以下内容：
+Before packaging, you need to prepare the following:
 
-#### 1. 准备 Kotlin LSP Server
+#### 1. Prepare Kotlin LSP Server
 
-下载或指定 Kotlin LSP Server zip 文件路径：
+Download or specify the Kotlin LSP Server zip file path:
 
 ```bash
 export LSP_ZIP_PATH="/path/to/kotlin-lsp-xxx.zip"
 ```
 
-#### 2. 准备 ADT CLI
+#### 2. Prepare ADT CLI
 
-从 ADT 项目构建并复制 ADT CLI：
+Build and copy ADT CLI from the ADT project:
 
 ```bash
-# 构建 ADT CLI
+# Build ADT CLI
 cd /path/to/adt/project
 ./gradlew :adt-cli:installDist
 
-# 复制到插件目录
+# Copy to extension directory
 cp -r adt-cli/build/install/adt-cli /path/to/android-lsp/vscode-plugin/android-lsp/
 
-# 添加执行权限
+# Add execute permission
 chmod +x /path/to/android-lsp/vscode-plugin/android-lsp/adt-cli/bin/adt-cli
 ```
 
-#### 3. 执行打包
+#### 3. Execute Packaging
 
 ```bash
-# 设置 LSP Server 路径
+# Set LSP Server path
 export LSP_ZIP_PATH="/path/to/kotlin-lsp-xxx.zip"
 
-# 打包
+# Package
 npx @vscode/vsce package 1.0.0 --out android-lsp-1.0.0.vsix
 ```
 
-或使用打包脚本：
+Or use the packaging script:
 
 ```bash
 ./package.sh 1.0.0
 ```
 
-## 工作原理
+## How It Works
 
-### 架构流程
+### Architecture Flow
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    Android LSP 插件启动                          │
+│                    Android LSP Extension Startup                 │
 └─────────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│  1. 项目检测 (projectDetector.ts)                               │
-│     - 检查 build.gradle / settings.gradle                       │
-│     - 检查 AndroidManifest.xml                                  │
-│     - 判断是否为 Android 项目                                    │
+│  1. Project Detection (projectDetector.ts)                      │
+│     - Check build.gradle / settings.gradle                      │
+│     - Check AndroidManifest.xml                                 │
+│     - Determine if Android project                              │
 └─────────────────────────────────────────────────────────────────┘
                               │
                     ┌─────────┴─────────┐
                     │                   │
                     ▼                   ▼
             ┌───────────────┐   ┌───────────────┐
-            │  Android 项目  │   │  纯 Kotlin 项目 │
+            │ Android Project│   │Pure Kotlin Proj│
             └───────────────┘   └───────────────┘
                     │                   │
                     ▼                   │
 ┌─────────────────────────────────────┐│
-│  2. 生成 workspace.json (ADT CLI)   ││
-│     - 解析 Gradle 依赖              ││
-│     - 生成模块信息                  ││
-│     - 保存到项目根目录              ││
+│  2. Generate workspace.json (ADT CLI)││
+│     - Parse Gradle dependencies     ││
+│     - Generate module information   ││
+│     - Save to project root          ││
 └─────────────────────────────────────┘│
                     │                   │
                     └─────────┬─────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│  3. 启动 Kotlin LSP Server                                       │
-│     - 使用内嵌的 kotlin-lsp.sh                                   │
-│     - 读取 workspace.json (Android 项目)                         │
-│     - 提供 LSP 服务                                              │
+│  3. Start Kotlin LSP Server                                      │
+│     - Use bundled kotlin-lsp.sh                                  │
+│     - Read workspace.json (Android projects)                     │
+│     - Provide LSP services                                       │
 └─────────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│  4. LSP 功能                                                     │
-│     - 代码补全                                                   │
-│     - 代码导航                                                   │
-│     - 代码重构                                                   │
-│     - 错误诊断                                                   │
+│  4. LSP Features                                                 │
+│     - Code completion                                            │
+│     - Code navigation                                            │
+│     - Code refactoring                                           │
+│     - Error diagnostics                                          │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### 核心组件
+### Core Components
 
-| 组件 | 文件 | 功能 |
-|------|------|------|
-| 项目检测 | `projectDetector.ts` | 检测项目类型 (Android/Kotlin) |
-| ADT 管理 | `adtManager.ts` | 调用 ADT CLI 生成 workspace.json |
-| 工作区生成 | `workspaceGenerator.ts` | 管理 workspace.json 生成 |
-| LSP 客户端 | `lspClient.ts` | 启动和管理 Kotlin LSP Server |
-| 状态栏 | `statusBar.ts` | 显示 LSP 状态和项目类型 |
+| Component | File | Function |
+|-----------|------|----------|
+| Project Detection | `projectDetector.ts` | Detect project type (Android/Kotlin) |
+| ADT Management | `adtManager.ts` | Call ADT CLI to generate workspace.json |
+| Workspace Generation | `workspaceGenerator.ts` | Manage workspace.json generation |
+| LSP Client | `lspClient.ts` | Start and manage Kotlin LSP Server |
+| Status Bar | `statusBar.ts` | Display LSP status and project type |
 
-## 安装后配置
+## Post-Installation Configuration
 
-### 自动配置 (无需用户操作)
+### Automatic Configuration (No User Action Required)
 
-以下功能开箱即用：
+The following features work out of the box:
 
-- ✅ Kotlin LSP Server (内嵌)
-- ✅ JRE 运行时 (内嵌)
-- ✅ Kotlin 语法高亮
-- ✅ 项目自动检测
+- ✅ Kotlin LSP Server (bundled)
+- ✅ JRE runtime (bundled)
+- ✅ Kotlin syntax highlighting
+- ✅ Automatic project detection
 
-### 需要用户配置
+### User Configuration Required
 
-#### 1. ADT CLI 权限 (macOS/Linux)
+#### 1. ADT CLI Permissions (macOS/Linux)
 
-首次安装后，需要赋予 ADT CLI 执行权限：
+After first installation, grant execute permission to ADT CLI:
 
 ```bash
 chmod +x ~/.vscode/extensions/android-lsp.android-lsp-*/adt-cli/bin/adt-cli
 ```
 
-#### 2. Java 21+ 环境
+#### 2. Java 21+ Environment
 
-ADT CLI 需要 Java 21 或更高版本：
+ADT CLI requires Java 21 or higher:
 
 ```bash
-# 检查 Java 版本
+# Check Java version
 java -version
 
-# 如果没有安装，请安装 Java 21+
+# If not installed, install Java 21+
 # macOS:
 brew install openjdk@21
 ```
 
-#### 3. 可选配置项
+#### 3. Optional Settings
 
-在 VSCode 设置中可以配置：
+Configure in VSCode settings:
 
 ```json
 {
-  // ADT CLI 路径 (默认使用内嵌版本)
+  // ADT CLI path (default: bundled version)
   "androidLSP.adtCliPath": null,
   
-  // JDK 路径 (符号解析)
+  // JDK path (for symbol resolution)
   "androidLSP.jdkForSymbolResolution": null,
   
-  // 额外 JVM 参数
+  // Additional JVM arguments
   "androidLSP.additionalJvmArgs": []
 }
 ```
 
-## 命令
+## Commands
 
-| 命令 | 说明 |
-|------|------|
-| `Android LSP: Generate workspace.json` | 手动生成 workspace.json |
-| `Android LSP: Restart LSP` | 重启 LSP Server |
-| `Android LSP: Sync Gradle` | 同步 Gradle 并重新生成 workspace.json |
+| Command | Description |
+|---------|-------------|
+| `Android LSP: Generate workspace.json` | Manually generate workspace.json |
+| `Android LSP: Restart LSP` | Restart LSP Server |
+| `Android LSP: Sync Gradle` | Sync Gradle and regenerate workspace.json |
 
-## 故障排除
+## Troubleshooting
 
-### LSP 启动失败
+### LSP Startup Failure
 
-1. 检查 Kotlin LSP Server 权限：
+1. Check Kotlin LSP Server permissions:
 ```bash
 chmod +x ~/.vscode/extensions/android-lsp.android-lsp-*/server/kotlin-lsp.sh
 ```
 
-2. 移除 macOS 隔离属性：
+2. Remove macOS quarantine attribute:
 ```bash
 xattr -cr ~/.vscode/extensions/android-lsp.android-lsp-*/
 ```
 
-### workspace.json 生成失败
+### workspace.json Generation Failure
 
-1. 确认 Java 21+ 已安装：
+1. Confirm Java 21+ is installed:
 ```bash
 java -version
 ```
 
-2. 确认 ADT CLI 有执行权限：
+2. Confirm ADT CLI has execute permission:
 ```bash
 chmod +x ~/.vscode/extensions/android-lsp.android-lsp-*/adt-cli/bin/adt-cli
 ```
 
-3. 手动运行 ADT CLI 测试：
+3. Test ADT CLI manually:
 ```bash
 ~/.vscode/extensions/android-lsp.android-lsp-*/adt-cli/bin/adt-cli workspace /path/to/android/project
 ```
 
-### 项目未被识别为 Android 项目
+### Project Not Recognized as Android Project
 
-确保项目包含以下文件之一：
-- `build.gradle` 或 `build.gradle.kts` (包含 `com.android.application` 插件)
+Ensure the project contains one of the following:
+- `build.gradle` or `build.gradle.kts` (with `com.android.application` plugin)
 - `app/src/main/AndroidManifest.xml`
 
-## 许可证
+## License
 
-本项目采用 GNU Lesser General Public License v3.0 (LGPL-3.0) 许可证。
+This project is licensed under the GNU Lesser General Public License v3.0 (LGPL-3.0).
 
-本项目包含以下第三方组件：
+This project includes the following third-party components:
 
-| 组件 | 许可证 | 版权方 |
-|------|--------|--------|
+| Component | License | Copyright |
+|-----------|---------|-----------|
 | kotlin-vscode | Apache 2.0 | JetBrains s.r.o. |
 | Kotlin LSP Server | Apache 2.0 | JetBrains s.r.o. |
 | ADT | LGPL-3.0 | yamsergey |
 
-详见 [THIRD-PARTY-NOTICES](THIRD-PARTY-NOTICES) 文件。
+See [THIRD-PARTY-NOTICES](THIRD-PARTY-NOTICES) for details.
 
-### 源代码获取
+### Source Code Availability
 
-本项目使用的第三方库源代码可从以下地址获取：
+Source code for third-party libraries used in this project:
 
 - kotlin-vscode: https://github.com/JetBrains/kotlin-vscode
 - Kotlin LSP Server: https://github.com/JetBrains/kotlin-lsp
 - ADT: https://github.com/yamsergey/adt
 
-### 替换 ADT CLI 版本
+### Replacing ADT CLI Version
 
-如果您想使用不同版本的 ADT CLI：
+To use a different version of ADT CLI:
 
-1. 下载所需版本：https://github.com/yamsergey/adt/releases
-2. 替换 `adt-cli/` 目录
-3. 重启 VSCode
+1. Download from: https://github.com/yamsergey/adt/releases
+2. Replace the `adt-cli/` directory
+3. Restart VSCode
