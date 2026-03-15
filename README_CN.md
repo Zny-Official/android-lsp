@@ -115,7 +115,7 @@ cd core/adt
 ## 致谢
 
 - [JetBrains](https://www.jetbrains.com/) 提供原始 Kotlin LSP 实现
-- [yamsergey](https://github.com/yamsergey/adt) 提供 ADT 项目
+- [yamsergey](https://github.com/yamsergey/yamsergey.adt) 提供 ADT 项目
 - [Kotlin LSP Issue #97](https://github.com/Kotlin/kotlin-lsp/issues/97#issuecomment-3957021983) 提供 Compose 编译器插件灵感
 
 ## 链接

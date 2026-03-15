@@ -115,7 +115,7 @@ Contributions are welcome! Please read the contributing guidelines before submit
 ## Acknowledgments
 
 - [JetBrains](https://www.jetbrains.com/) for the original Kotlin LSP implementation
-- [yamsergey](https://github.com/yamsergey/adt) for the ADT project
+- [yamsergey](https://github.com/yamsergey/yamsergey.adt) for the ADT project
 - [Kotlin LSP Issue #97](https://github.com/Kotlin/kotlin-lsp/issues/97#issuecomment-3957021983) for Compose compiler plugin inspiration
 
 ## Links
