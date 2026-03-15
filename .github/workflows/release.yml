@@ -1,0 +1,180 @@
+name: Release VSCode Extension
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+-*'
+  workflow_dispatch:
+    inputs:
+      kotlin_lsp_version:
+        description: 'Kotlin LSP version (e.g., 262.1817.0)'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+jobs:
+  get-lsp-version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.get-version.outputs.version }}
+    steps:
+      - name: Get latest Kotlin LSP version
+        id: get-version
+        run: |
+          if [ -n "${{ github.event.inputs.kotlin_lsp_version }}" ]; then
+            VERSION="${{ github.event.inputs.kotlin_lsp_version }}"
+          else
+            LATEST_RELEASE=$(curl -s https://api.github.com/repos/Kotlin/kotlin-lsp/releases/latest)
+            TAG_NAME=$(echo "$LATEST_RELEASE" | jq -r '.tag_name')
+            VERSION=$(echo "$TAG_NAME" | sed 's/^kotlin-lsp\/v//')
+            if [ -z "$VERSION" ] || [ "$VERSION" = "null" ]; then
+              VERSION="262.1817.0"
+            fi
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Kotlin LSP version: $VERSION"
+
+  build-adt-cli:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+          cache: 'gradle'
+
+      - name: Build adt-cli
+        run: |
+          cd core/adt
+          ./gradlew :adt-cli:installDist
+
+      - name: Upload adt-cli artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: adt-cli
+          path: core/adt/adt-cli/build/install/adt-cli
+          retention-days: 1
+
+  build-extension:
+    needs: [get-lsp-version, build-adt-cli]
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - platform: darwin-x64
+            lsp_arch: mac-x64
+          - platform: darwin-arm64
+            lsp_arch: mac-aarch64
+          - platform: linux-x64
+            lsp_arch: linux-x64
+          - platform: linux-arm64
+            lsp_arch: linux-aarch64
+          - platform: win32-x64
+            lsp_arch: win-x64
+          - platform: win32-arm64
+            lsp_arch: win-aarch64
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download adt-cli artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: adt-cli
+          path: vscode-plugin/android-lsp/adt-cli
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: vscode-plugin/android-lsp/package-lock.json
+
+      - name: Download Kotlin LSP
+        env:
+          LSP_VERSION: ${{ needs.get-lsp-version.outputs.version }}
+        run: |
+          curl -L -o kotlin-lsp.zip "https://download-cdn.jetbrains.com/kotlin-lsp/${LSP_VERSION}/kotlin-lsp-${LSP_VERSION}-${{ matrix.lsp_arch }}.zip"
+
+      - name: Build and package extension
+        working-directory: vscode-plugin/android-lsp
+        env:
+          LSP_ZIP_PATH: ${{ github.workspace }}/kotlin-lsp.zip
+        run: |
+          # Install dependencies
+          npm ci
+          
+          # Build extension
+          npm run compile
+          
+          # Unpack Kotlin LSP server
+          npm run unpack-server
+          
+          # Remove server/ and adt-cli/ from .gitignore so vsce includes them
+          sed -i '/^server\/$/d' .gitignore
+          sed -i '/^adt-cli\/$/d' .gitignore
+          
+          # Package VSIX
+          VERSION=${GITHUB_REF_NAME#v}
+          npx vsce package $VERSION --out android-lsp-${{ matrix.platform }}.vsix --allow-star-activation --no-dependencies
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-lsp-${{ matrix.platform }}
+          path: vscode-plugin/android-lsp/android-lsp-${{ matrix.platform }}.vsix
+          retention-days: 1
+
+  create-release:
+    needs: [get-lsp-version, build-extension]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: android-lsp-*
+          merge-multiple: true
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: artifacts/*.vsix
+          body: |
+            ## Android LSP ${{ github.ref_name }}
+            
+            ### Kotlin LSP Version
+            Bundled Kotlin LSP: v${{ needs.get-lsp-version.outputs.version }}
+            
+            ### Downloads
+            
+            | Platform | File |
+            |----------|------|
+            | macOS (Intel) | `android-lsp-darwin-x64.vsix` |
+            | macOS (Apple Silicon) | `android-lsp-darwin-arm64.vsix` |
+            | Linux (x64) | `android-lsp-linux-x64.vsix` |
+            | Linux (ARM64) | `android-lsp-linux-arm64.vsix` |
+            | Windows (x64) | `android-lsp-win32-x64.vsix` |
+            | Windows (ARM64) | `android-lsp-win32-arm64.vsix` |
+            
+            ### Installation
+            
+            1. Download the `.vsix` file for your platform
+            2. Open VS Code
+            3. Press `Cmd+Shift+P` (macOS) or `Ctrl+Shift+P` (Windows/Linux)
+            4. Type "Install from VSIX" and select the downloaded file
+            
+            ### Requirements
+            
+            - VS Code 1.96.0 or higher
+            - Java 21 or higher (for running the language server)
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

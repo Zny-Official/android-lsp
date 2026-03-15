@@ -93,6 +93,14 @@ export class AdtManager {
         
         const bundledPath = this.getBundledAdtCliPath();
         if (bundledPath && fs.existsSync(bundledPath)) {
+            // Ensure the bundled CLI has execute permissions (VSIX doesn't preserve permissions)
+            if (process.platform !== 'win32') {
+                try {
+                    await exec(`chmod +x "${bundledPath}"`);
+                } catch (e) {
+                    console.warn('Failed to set execute permission on bundled CLI:', e);
+                }
+            }
             return bundledPath;
         }
         
