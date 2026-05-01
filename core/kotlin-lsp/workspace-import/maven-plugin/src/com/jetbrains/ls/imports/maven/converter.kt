@@ -195,7 +195,7 @@ private fun sourceRootData(
     module: MavenModuleData,
     project: MavenProject,
     kotlinSettings: KotlinSettingsData?
-): List<SourceRootData> = buildSet {
+): List<SourceRootData> = buildList {
     val projectRoot = project.basedir?.toPath()?.absolute()
 
     fun belongsToProject(dir: String) = projectRoot == null || Path(dir).let { it != projectRoot && it.startsWith(projectRoot) }
@@ -223,6 +223,9 @@ private fun sourceRootData(
             project.compileSourceRoots
                 ?.filter { belongsToProject(it) }
                 ?.forEach { add(SourceRootData(it, "java-source")) }
+            project.getCompilerGeneratedSourcesDir("default-compile")?.let {
+                add(SourceRootData(it, "java-source"))
+            }
             project.resources
                 ?.map { it.directory }
                 ?.filter { belongsToProject(it) }
@@ -257,7 +260,7 @@ private fun sourceRootData(
 //            addModelloGeneratedSources(project, "java-test")
         }
     }
-}.toList()
+}
 
 private fun MutableSet<SourceRootData>.addAntlr4GeneratedSources(
     project: MavenProject,
@@ -383,22 +386,10 @@ private fun contentRootData(
         return sourceRoots.map { ContentRootData(path = it.path, sourceRoots = listOf(it)) }
     }
 
-    val standardPaths = (project.compileSourceRoots.orEmpty() + project.resources.orEmpty().map { it.directory }).toSet()
-
-    val standardContentRoots = sourceRoots
-        .filter { it.path in standardPaths }
+    return sourceRoots
         .takeIf { it.isNotEmpty() }
         ?.map { ContentRootData(path = it.path, sourceRoots = listOf(it)) }
         ?: emptyList()
-
-    val nonStandardContentRoots =
-        sourceRoots
-            .filter { it.path !in standardPaths }
-            .takeIf { it.isNotEmpty() }
-            ?.let { listOf(ContentRootData(path = baseDir, sourceRoots = it)) }
-            ?: emptyList()
-
-    return standardContentRoots + nonStandardContentRoots
 }
 
 private fun getModuleImportData(

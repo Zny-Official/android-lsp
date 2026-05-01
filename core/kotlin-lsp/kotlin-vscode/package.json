@@ -14,7 +14,7 @@
   },
   "engines": {
     "vscode": "^1.96.0",
-    "node": "^22.20.0"
+    "node": ">=22.20.0"
   },
   "categories": [
     "Programming Languages"
@@ -65,29 +65,34 @@
     ],
     "configuration": [
       {
-        "title": "Kotlin by JetBrains",
+        "title": "IntelliJ Language Server",
         "properties": {
-          "kotlinLSP.dev.serverPort": {
+          "intellij.dev.serverPort": {
             "type": "number",
             "default": -1,
-            "description": "Port for the locally started Kotlin Language Server to listen on. -1 to start the bundled LSP"
+            "description": "Port for the locally started server to listen on. -1 to start the bundled server"
           },
-          "kotlinLSP.jrePathToRunLsp": {
-            "type": "string",
-            "default": null,
-            "description": "Path of the JRE used to run the Kotlin LSP. Requires version 21 or higher. If unspecified, the bundled JetBrains Runtime is used."
+          "intellij.dev.logLaunch": {
+            "type": "boolean",
+            "default": false,
+            "description": "Enable debug logging for the bundled server launcher (logs launcher output and env)"
           },
-          "kotlinLSP.additionalJvmArgs": {
+          "intellij.additionalJvmArgs": {
             "type": "array",
             "default": [],
             "description": "Additional JVM arguments to pass to the LSP server"
           },
-          "kotlinLSP.jdkForSymbolResolution": {
+          "intellij.buildTool": {
+            "type": "string",
+            "default": null,
+            "description": "A build tool to use for a server, workspace, folder (null = any, \"\" = none)"
+          },
+          "intellij.jdkForSymbolResolution": {
             "type": "string",
             "default": null,
             "description": "Path of the JDK for symbol resolution"
           },
-          "kotlinLSP.trace.server": {
+          "intellij.trace.server": {
             "scope": "window",
             "type": "string",
             "enum": [
@@ -164,8 +169,62 @@
             "description": "Function return type in call chains"
           }
         }
+      },
+      {
+        "title": "File Templates",
+        "markdownDescription": "Please check [documentation](https://github.com/Kotlin/kotlin-lsp/blob/main/kotlin-vscode/docs/file_templates.md).",
+        "properties": {
+          "jetbrains.templates.kotlin.Class": {
+            "type": "string",
+            "editPresentation": "multilineText",
+            "default": "#if (${PACKAGE_NAME} && ${PACKAGE_NAME} != \"\")package ${PACKAGE_NAME}\n\n#end\nclass ${NAME} {\n\t|\n}",
+            "markdownDescription": "Please check [documentation](https://github.com/Kotlin/kotlin-lsp/blob/main/kotlin-vscode/docs/file_templates.md)."
+          },
+          "jetbrains.templates.kotlin.File": {
+            "type": "string",
+            "editPresentation": "multilineText",
+            "default": "#if (${PACKAGE_NAME} && ${PACKAGE_NAME} != \"\")package ${PACKAGE_NAME}\n\n#end\n|",
+            "markdownDescription": "Please check [documentation](https://github.com/Kotlin/kotlin-lsp/blob/main/kotlin-vscode/docs/file_templates.md)."
+          },
+          "jetbrains.templates.kotlin.Interface": {
+            "type": "string",
+            "editPresentation": "multilineText",
+            "default": "#if (${PACKAGE_NAME} && ${PACKAGE_NAME} != \"\")package ${PACKAGE_NAME}\n\n#end\ninterface ${NAME} {\n\t|\n}",
+            "markdownDescription": "Please check [documentation](https://github.com/Kotlin/kotlin-lsp/blob/main/kotlin-vscode/docs/file_templates.md)."
+          },
+          "jetbrains.templates.kotlin.Data Class": {
+            "type": "string",
+            "editPresentation": "multilineText",
+            "default": "#if (${PACKAGE_NAME} && ${PACKAGE_NAME} != \"\")package ${PACKAGE_NAME}\n\n#end\ndata class ${NAME}(|)\n",
+            "markdownDescription": "Please check [documentation](https://github.com/Kotlin/kotlin-lsp/blob/main/kotlin-vscode/docs/file_templates.md)."
+          },
+          "jetbrains.templates.kotlin.Enum": {
+            "type": "string",
+            "editPresentation": "multilineText",
+            "default": "#if (${PACKAGE_NAME} && ${PACKAGE_NAME} != \"\")package ${PACKAGE_NAME}\n\n#end\nenum class ${NAME} {\n\t|\n}",
+            "markdownDescription": "Please check [documentation](https://github.com/Kotlin/kotlin-lsp/blob/main/kotlin-vscode/docs/file_templates.md)."
+          },
+          "jetbrains.templates.kotlin.Annotation": {
+            "type": "string",
+            "editPresentation": "multilineText",
+            "default": "#if (${PACKAGE_NAME} && ${PACKAGE_NAME} != \"\")package ${PACKAGE_NAME}\n\n#end\nannotation class ${NAME}(|)",
+            "markdownDescription": "Please check [documentation](https://github.com/Kotlin/kotlin-lsp/blob/main/kotlin-vscode/docs/file_templates.md)."
+          },
+          "jetbrains.templates.kotlin.Object": {
+            "type": "string",
+            "editPresentation": "multilineText",
+            "default": "#if (${PACKAGE_NAME} && ${PACKAGE_NAME} != \"\")package ${PACKAGE_NAME}\n\n#end\nobject ${NAME} {\n\t|\n}",
+            "markdownDescription": "Please check [documentation](https://github.com/Kotlin/kotlin-lsp/blob/main/kotlin-vscode/docs/file_templates.md)."
+          }
+        }
       }
     ],
+    "configurationDefaults": {
+      "[kotlin]": {
+        "editor.autoIndent": "none",
+        "editor.formatOnType": false
+      }
+    },
     "commands": [
       {
         "command": "jetbrains.exportWorkspaceToJson",
@@ -183,13 +242,19 @@
     "@types/node": "^22.13.8",
     "@types/vscode": "^1.96.0",
     "ts-loader": "^9.5.2",
+    "tsx": "^4.21.0",
     "typescript": "^5.7.2",
     "vscode-tmgrammar-test": "^0.1.3",
     "webpack": "^5.100.2",
     "webpack-cli": "^6.0.1"
   },
   "dependencies": {
-    "vscode-languageclient": "9.0.1"
+    "@tree-sitter-grammars/tree-sitter-kotlin": "^1.1.0",
+    "tree-sitter-go": "^0.25.0",
+    "tree-sitter-java": "^0.23.5",
+    "tree-sitter-sql": "^0.1.0",
+    "vscode-languageclient": "9.0.1",
+    "web-tree-sitter": "^0.26.8"
   },
   "scripts": {
     "compile": "webpack --mode development",
@@ -197,8 +262,10 @@
     "vscode:prepublish": "npm run package && npm run unpack-server",
     "package": "webpack --mode production --devtool hidden-source-map",
     "apply-intellij": "node apply-intellij.js",
-    "unpack-server": "rm -rf server && mkdir -p server && case \"$LSP_ZIP_PATH\" in *.tar.gz) tar -xzf \"$LSP_ZIP_PATH\" --strip-components=1 -C server ;; *.zip) unzip -q -o -- \"$LSP_ZIP_PATH\" -d server ;; *.sit) mkdir server.tmp && unzip -q -o -- \"$LSP_ZIP_PATH\" -d server.tmp && rmdir server && mv server.tmp/* server && rm -rf server.tmp ;; *) echo \"Unsupported archive type: $LSP_ZIP_PATH\"; exit 1 ;; esac",
-    "test": "vscode-tmgrammar-snap --grammar syntaxes/kotlin.tmLanguage.json --scope source.kotlin testSources/tokenization/*.kt",
+    "unpack-server": "node unpack-server.js",
+    "test": "npm run test:grammar && npm run test:unit",
+    "test:grammar": "vscode-tmgrammar-snap --grammar syntaxes/kotlin.tmLanguage.json --scope source.kotlin testSources/tokenization/*.kt",
+    "test:unit": "node --import tsx --test src/*.test.ts src/**/*.test.ts",
     "updateGrammarTests": "vscode-tmgrammar-snap --grammar syntaxes/kotlin.tmLanguage.json --scope source.kotlin --updateSnapshot testSources/tokenization/*.kt"
   }
 }

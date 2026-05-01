@@ -7,7 +7,9 @@
                     "type": "moduleSource"
                 },
                 {
-                    "type": "inheritedSdk"
+                    "type": "sdk",
+                    "name": "17",
+                    "kind": "jdk"
                 }
             ],
             "contentRoots": [
@@ -43,7 +45,9 @@
                     "type": "moduleSource"
                 },
                 {
-                    "type": "inheritedSdk"
+                    "type": "sdk",
+                    "name": "17",
+                    "kind": "jdk"
                 }
             ],
             "contentRoots": [
@@ -56,7 +60,7 @@
                         },
                         {
                             "path": "<WORKSPACE>/src/main/kotlin",
-                            "type": "kotlin-source"
+                            "type": "java-source"
                         },
                         {
                             "path": "<WORKSPACE>/src/main/resources",
@@ -98,7 +102,9 @@
                     "type": "moduleSource"
                 },
                 {
-                    "type": "inheritedSdk"
+                    "type": "sdk",
+                    "name": "17",
+                    "kind": "jdk"
                 }
             ],
             "contentRoots": [
@@ -111,7 +117,7 @@
                         },
                         {
                             "path": "<WORKSPACE>/src/test/kotlin",
-                            "type": "kotlin-test"
+                            "type": "java-test"
                         },
                         {
                             "path": "<WORKSPACE>/src/test/resources",
@@ -192,6 +198,16 @@
             "roots": []
         }
     ],
+    "sdks": [
+        {
+            "name": "17",
+            "type": "jdk",
+            "version": "JDK_17",
+            "homePath": null,
+            "roots": [],
+            "additionalData": ""
+        }
+    ],
     "kotlinSettings": [
         {
             "name": "Kotlin",
@@ -256,35 +272,6 @@
             "externalSystemRunTasks": [],
             "version": 5,
             "flushNeeded": false
-        }
-    ],
-    "javaSettings": [
-        {
-            "module": "NonExistentDependency",
-            "inheritedCompilerOutput": false,
-            "excludeOutput": false,
-            "compilerOutput": null,
-            "compilerOutputForTests": null,
-            "languageLevelId": "JDK_21",
-            "manifestAttributes": {}
-        },
-        {
-            "module": "NonExistentDependency.main",
-            "inheritedCompilerOutput": false,
-            "excludeOutput": false,
-            "compilerOutput": null,
-            "compilerOutputForTests": null,
-            "languageLevelId": "JDK_21",
-            "manifestAttributes": {}
-        },
-        {
-            "module": "NonExistentDependency.test",
-            "inheritedCompilerOutput": false,
-            "excludeOutput": false,
-            "compilerOutput": null,
-            "compilerOutputForTests": null,
-            "languageLevelId": "JDK_21",
-            "manifestAttributes": {}
         }
     ]
 }

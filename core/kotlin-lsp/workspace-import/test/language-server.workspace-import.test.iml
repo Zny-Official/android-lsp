@@ -2,13 +2,13 @@
 <module type="JAVA_MODULE" version="4">
   <component name="FacetManager">
     <facet type="kotlin-language" name="Kotlin">
-      <configuration version="5" platform="JVM 21" allPlatforms="JVM [21]" useProjectSettings="false">
+      <configuration version="5" platform="JVM 25" allPlatforms="JVM [25]" useProjectSettings="false">
         <compilerSettings>
           <option name="additionalArguments" value="-Xjvm-default=all -Xcontext-parameters -opt-in=com.intellij.openapi.util.IntellijInternalApi -XXLanguage:+AllowEagerSupertypeAccessibilityChecks -progressive" />
         </compilerSettings>
         <compilerArguments>
           <stringArguments>
-            <stringArg name="jvmTarget" arg="21" />
+            <stringArg name="jvmTarget" arg="25" />
             <stringArg name="apiVersion" arg="2.3" />
             <stringArg name="languageVersion" arg="2.3" />
           </stringArguments>
@@ -51,6 +51,7 @@
     <orderEntry type="module" module-name="intellij.platform.core" scope="TEST" />
     <orderEntry type="module" module-name="intellij.platform.ide.core.impl" scope="TEST" />
     <orderEntry type="module" module-name="intellij.platform.projectModel.impl" scope="TEST" />
+    <orderEntry type="module" module-name="intellij.platform.testFramework.common" scope="TEST" />
     <orderEntry type="module" module-name="intellij.platform.util" scope="TEST" />
     <orderEntry type="module" module-name="language-server.workspace-import" scope="TEST" />
     <orderEntry type="module" module-name="language-server.workspace-import.maven-plugin" scope="TEST" />
@@ -58,12 +59,12 @@
     <orderEntry type="module" module-name="intellij.platform.workspace.jps" scope="TEST" />
     <orderEntry type="module" module-name="language-server.api.impl.analyzer" scope="TEST" />
     <orderEntry type="module" module-name="intellij.libraries.kotlinx.coroutines.core" scope="TEST" />
-    <orderEntry type="module" module-name="language-server.api.core" scope="TEST" />
     <orderEntry type="module" module-name="intellij.kotlin.base.facet" scope="TEST" />
     <orderEntry type="module" module-name="intellij.libraries.kotlinx.serialization.json" scope="TEST" />
     <orderEntry type="module" module-name="intellij.libraries.kotlinx.serialization.core" scope="TEST" />
     <orderEntry type="module" module-name="intellij.platform.core.impl" scope="TEST" />
     <orderEntry type="module" module-name="language-server.analyzer" scope="TEST" />
     <orderEntry type="module" module-name="intellij.platform.buildScripts.downloader" scope="TEST" />
+    <orderEntry type="module" module-name="intellij.tools.ide.starter" scope="TEST" />
   </component>
 </module>

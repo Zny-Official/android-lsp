@@ -57,6 +57,8 @@ import org.jetbrains.kotlin.idea.workspaceModel.KotlinSettingsEntity
 import org.jetbrains.kotlin.idea.workspaceModel.KotlinSettingsEntityBuilder
 import java.nio.file.Path
 import kotlin.io.path.absolutePathString
+import kotlin.io.path.exists
+import kotlin.io.path.relativeTo
 
 private val LOG = fileLogger()
 
@@ -243,6 +245,7 @@ private fun toRelativePath(path: Path, workspacePath: Path): String {
 }
 
 
+
 fun MutableEntityStorage.importWorkspaceData(
     data: WorkspaceData,
     workspacePath: Path,
@@ -255,19 +258,40 @@ fun MutableEntityStorage.importWorkspaceData(
         if (ignoreDuplicateLibsAndSdks && SdkId(sdkData.name, sdkData.type) in storage) {
             continue
         }
-        val roots =
-            sdkData.roots?.map { SdkRoot(virtualFileUrlManager.getOrCreateFromUrl(it.url), SdkRootTypeId(it.type)) }
-                ?: sdkData.homePath?.let { homePath ->
-                    val uris = JavaSdkImpl.findClasses(toAbsolutePath(homePath, workspacePath), false)
-                        .map { it.replace("!/", "!/modules/") }
-                    uris.map { SdkRoot(it.toIntellijUri(virtualFileUrlManager), SdkRootTypeId("classPath")) }
-                }
-                ?: emptyList()
-
         storage addEntity SdkEntity(
             name = sdkData.name,
             type = sdkData.type,
-            roots = roots,
+            roots = buildList {
+                when {
+                    sdkData.roots != null -> {
+                        sdkData.roots.mapTo(this) {
+                            SdkRoot(
+                                virtualFileUrlManager.getOrCreateFromUrl(it.url),
+                                when (it.type) {
+                                    SdkRootTypeId.SOURCES.name -> SdkRootTypeId.SOURCES
+                                    SdkRootTypeId.CLASSES.name -> SdkRootTypeId.CLASSES
+                                    else -> SdkRootTypeId(it.type)
+                                })
+                        }
+                    }
+                    sdkData.homePath != null -> {
+                        val sdkHome = toAbsolutePath(sdkData.homePath, workspacePath)
+                        JavaSdkImpl.findClasses(sdkHome, false).mapTo(this) {
+                            SdkRoot(
+                                it.replace("!/", "!/modules/").toIntellijUri(virtualFileUrlManager),
+                                SdkRootTypeId.CLASSES
+                            )
+                        }
+                        JavaSdkImpl.findSources(sdkHome).mapTo(this) {
+                            SdkRoot(
+                                it.toIntellijUri(virtualFileUrlManager),
+                                SdkRootTypeId.SOURCES
+                            )
+                        }
+                    }
+                    else -> LOG.warn("SDK has no home or roots: ${sdkData.name}")
+                }
+            },
             additionalData = sdkData.additionalData,
             entitySource = entitySource
         ) {
@@ -475,8 +499,8 @@ private fun toAbsoluteKotlinCompilerArguments(json: String): String = when (OS.C
     else -> json.replace(MAVEN_PREFIX, "${m2Repo.toAbsolutePath()}/")
 }
 
-internal fun toAbsolutePath(path: String, workspacePath: Path): Path =
-    when {
+internal fun toAbsolutePath(path: String, workspacePath: Path): Path {
+    val interpolatedPath = when {
         path.startsWith(WORKSPACE_PREFIX) -> {
             val relativePath = path.removePrefix(WORKSPACE_PREFIX)
             if (relativePath.isEmpty()) workspacePath else workspacePath.resolve(relativePath)
@@ -494,3 +518,23 @@ internal fun toAbsolutePath(path: String, workspacePath: Path): Path =
 
         else -> Path.of(path)
     }
+    return repatriate(interpolatedPath, workspacePath)
+}
+
+internal fun repatriate(path: Path, workspacePath: Path): Path  {
+    val realWorkspacePath = workspacePath.toRealPath()
+    val absoluteWorkspacePath = realWorkspacePath.absolutePathString()
+
+    var p: Path? = path
+    while (p != null) {
+        if (p.exists()) {
+            val realPath = p.toRealPath().absolutePathString()
+            if (realPath == absoluteWorkspacePath) {
+                val relative = path.relativeTo(p)
+                return workspacePath.resolve(relative).normalize()
+            }
+        }
+        p = p.parent
+    }
+    return path
+}

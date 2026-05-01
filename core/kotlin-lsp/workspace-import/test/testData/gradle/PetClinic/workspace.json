@@ -7,7 +7,9 @@
                     "type": "moduleSource"
                 },
                 {
-                    "type": "inheritedSdk"
+                    "type": "sdk",
+                    "name": "17",
+                    "kind": "jdk"
                 }
             ],
             "contentRoots": [
@@ -483,12 +485,20 @@
                     "type": "moduleSource"
                 },
                 {
-                    "type": "inheritedSdk"
+                    "type": "sdk",
+                    "name": "17",
+                    "kind": "jdk"
                 }
             ],
             "contentRoots": [
                 {
                     "path": "<WORKSPACE>/src/aot"
+                },
+                {
+                    "path": "<WORKSPACE>/build/generated/aotSources"
+                },
+                {
+                    "path": "<WORKSPACE>/build/generated/aotResources"
                 }
             ]
         },
@@ -1189,12 +1199,20 @@
                     "type": "moduleSource"
                 },
                 {
-                    "type": "inheritedSdk"
+                    "type": "sdk",
+                    "name": "17",
+                    "kind": "jdk"
                 }
             ],
             "contentRoots": [
                 {
                     "path": "<WORKSPACE>/src/aotTest"
+                },
+                {
+                    "path": "<WORKSPACE>/build/generated/aotTestSources"
+                },
+                {
+                    "path": "<WORKSPACE>/build/generated/aotTestResources"
                 }
             ]
         },
@@ -1664,13 +1682,15 @@
                 {
                     "type": "module",
                     "name": "PetClinic.aot",
-                    "scope": "provided"
+                    "scope": "runtime"
                 },
                 {
                     "type": "moduleSource"
                 },
                 {
-                    "type": "inheritedSdk"
+                    "type": "sdk",
+                    "name": "17",
+                    "kind": "jdk"
                 }
             ],
             "contentRoots": [
@@ -2385,13 +2405,15 @@
                 {
                     "type": "module",
                     "name": "PetClinic.aotTest",
-                    "scope": "provided"
+                    "scope": "runtime"
                 },
                 {
                     "type": "moduleSource"
                 },
                 {
-                    "type": "inheritedSdk"
+                    "type": "sdk",
+                    "name": "17",
+                    "kind": "jdk"
                 }
             ],
             "contentRoots": [
@@ -5311,51 +5333,14 @@
             }
         }
     ],
-    "javaSettings": [
+    "sdks": [
         {
-            "module": "PetClinic",
-            "inheritedCompilerOutput": false,
-            "excludeOutput": false,
-            "compilerOutput": null,
-            "compilerOutputForTests": null,
-            "languageLevelId": "JDK_17",
-            "manifestAttributes": {}
-        },
-        {
-            "module": "PetClinic.aot",
-            "inheritedCompilerOutput": false,
-            "excludeOutput": false,
-            "compilerOutput": null,
-            "compilerOutputForTests": null,
-            "languageLevelId": "JDK_17",
-            "manifestAttributes": {}
-        },
-        {
-            "module": "PetClinic.aotTest",
-            "inheritedCompilerOutput": false,
-            "excludeOutput": false,
-            "compilerOutput": null,
-            "compilerOutputForTests": null,
-            "languageLevelId": "JDK_17",
-            "manifestAttributes": {}
-        },
-        {
-            "module": "PetClinic.main",
-            "inheritedCompilerOutput": false,
-            "excludeOutput": false,
-            "compilerOutput": null,
-            "compilerOutputForTests": null,
-            "languageLevelId": "JDK_17",
-            "manifestAttributes": {}
-        },
-        {
-            "module": "PetClinic.test",
-            "inheritedCompilerOutput": false,
-            "excludeOutput": false,
-            "compilerOutput": null,
-            "compilerOutputForTests": null,
-            "languageLevelId": "JDK_17",
-            "manifestAttributes": {}
+            "name": "17",
+            "type": "jdk",
+            "version": "JDK_17",
+            "homePath": null,
+            "roots": [],
+            "additionalData": ""
         }
     ]
 }

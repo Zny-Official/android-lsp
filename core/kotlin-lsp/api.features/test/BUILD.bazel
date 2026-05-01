@@ -2,6 +2,7 @@ load("@community//build:tests-options.bzl", "jps_test")
 
 jps_test(
   name = "test_test",
+  jvm_flags = ["-Dintellij.build.test.ignoreFirstAndLastTests=true"],
   runtime_deps = [":test_test_lib"],
   sandbox = True,
 )
@@ -12,13 +13,14 @@ load("@rules_jvm//:jvm.bzl", "jvm_library")
 
 jvm_library(
   name = "test",
+  module_name = "language-server.api.features.test",
   visibility = ["//visibility:public"],
   srcs = glob([], allow_empty = True),
   runtime_deps = [
     "@lib//:kotlin-stdlib",
     "@community//fleet/lsp.protocol",
     "@community//libraries/kotlinx/coroutines/core",
-    "//language-server/community/api.core",
+    "//language-server/api.impl.analyzer",
     "@community//platform/analysis-impl",
     "@community//platform/util",
     "@community//libraries/kotlinx/serialization/json",
@@ -29,6 +31,7 @@ jvm_library(
 
 jvm_library(
   name = "test_test_lib",
+  testonly = True,
   module_name = "language-server.api.features.test",
   visibility = ["//visibility:public"],
   srcs = glob(["test/**/*.kt", "test/**/*.java", "test/**/*.form"], allow_empty = True),
@@ -38,8 +41,8 @@ jvm_library(
     "@community//fleet/lsp.protocol:lsp.protocol_test_lib",
     "@community//libraries/kotlinx/coroutines/core",
     "@community//libraries/kotlinx/coroutines/core:core_test_lib",
-    "//language-server/community/api.core",
-    "//language-server/community/api.core:api.core_test_lib",
+    "//language-server/api.impl.analyzer",
+    "//language-server/api.impl.analyzer:api.impl.analyzer_test_lib",
     "@community//platform/analysis-impl",
     "@community//platform/analysis-impl:analysis-impl_test_lib",
     "@community//platform/util",
@@ -50,7 +53,8 @@ jvm_library(
     "@community//libraries/kotlinx/serialization/core:core_test_lib",
     "@ultimate_lib//:java-diff-utils",
     "@lib//:junit5",
-    "@lib//:junit5Jupiter",
+    "@community//libraries/junit5-jupiter",
+    "@community//libraries/junit5-jupiter:junit5-jupiter_test_lib",
     "//language-server/test-api",
     "//language-server/test-api:test-api_test_lib",
     "//language-server/community/api.features",
@@ -59,3 +63,9 @@ jvm_library(
   runtime_deps = [":test"]
 )
 ### auto-generated section `build language-server.api.features.test` end
+
+### auto-generated section `iml language-server.api.features.test` start
+exports_files([
+  "language-server.api.features.test.iml",
+], visibility = ["//visibility:public"])
+### auto-generated section `iml language-server.api.features.test` end

@@ -49,7 +49,7 @@ object MavenWorkspaceImporter : WorkspaceImporter {
         System.setProperty(JB_MAVEN_JAVA_HOME, javaHome.toString())
     }
 
-    private fun isApplicableDirectory(projectDirectory: Path): Boolean {
+    override fun canImportWorkspace(projectDirectory: Path): Boolean {
         return (projectDirectory / "pom.xml").exists()
     }
 
@@ -60,7 +60,7 @@ object MavenWorkspaceImporter : WorkspaceImporter {
         virtualFileUrlManager: VirtualFileUrlManager,
         progress: WorkspaceImportProgressReporter,
     ): EntityStorage? {
-        if (!isApplicableDirectory(projectDirectory)) return null
+        if (!canImportWorkspace(projectDirectory)) return null
 
         LOG.info("Importing Maven project from: $projectDirectory")
         val wrapper = projectDirectory / (if (OS.CURRENT == OS.Windows) "mvnw.cmd" else "mvnw")
@@ -75,12 +75,16 @@ object MavenWorkspaceImporter : WorkspaceImporter {
         LOG.info("Using Maven: $execPath (JAVA_HOME=${javaHome ?: "unspecified"})")
 
 
-        val offlineOpts = if(System.getProperty(LSP_MAVEN_PROJECT_OFFLINE_PROPERTY).toBoolean()) listOf("-o") else emptyList()
+        val offlineOpts = if (System.getProperty(LSP_MAVEN_PROJECT_OFFLINE_PROPERTY).toBoolean()) listOf("-o") else emptyList()
+        progress.progressStatus("Installing Maven plugin...")
         installMavenPlugin(execPath, javaHome, projectDirectory, progress, offlineOpts)
 
 
+        progress.progressStatus("Collecting Maven model...")
         val modelWithDeps = runMavenPluginGoal(execPath, javaHome, projectDirectory, "model-with-deps", progress, offlineOpts)
-        val modelWithGeneratedSources = runMavenPluginGoal(execPath, javaHome, projectDirectory, "gen-sources", progress,offlineOpts)
+        val modelWithGeneratedSources =
+            modelWithGeneratedSources(modelWithDeps is SuccessResult, execPath, javaHome, projectDirectory, progress, offlineOpts)
+        progress.progressStatus("Maven model collected, commiting...")
         val mergedModels = mergeResults(modelWithDeps, modelWithGeneratedSources)
 
         when (mergedModels) {
@@ -101,7 +105,44 @@ object MavenWorkspaceImporter : WorkspaceImporter {
         }
     }
 
+    private suspend fun modelWithGeneratedSources(
+        depsResolved: Boolean,
+        execPath: Path?,
+        javaHome: String?,
+        projectDirectory: Path,
+        progress: WorkspaceImportProgressReporter,
+        additionalParams: List<String>
+    ): MavenRunResult {
+        progress.progressStatus("Generating sources...")
+        val modelWithGeneratedSources = runMavenPluginGoal(execPath, javaHome, projectDirectory, "gen-sources", progress, additionalParams)
+        if (modelWithGeneratedSources is ErrorResult && couldBeFixedWithInstall(depsResolved, modelWithGeneratedSources)) {
+            progress.progressStatus("Generating sources failed, trying to fix with mvn install...")
+            runGoal(execPath, javaHome, projectDirectory, "install", progress, additionalParams)
+            progress.progressStatus("Generating sources, second try...")
+            return runMavenPluginGoal(execPath, javaHome, projectDirectory, "gen-sources", progress, additionalParams)
+        } else return modelWithGeneratedSources
+    }
+
+    private fun couldBeFixedWithInstall(depsResolved: Boolean, modelWithGeneratedSources: ErrorResult): Boolean {
+        return depsResolved //todo
+    }
+
     private suspend fun runMavenPluginGoal(
+        execPath: Path?,
+        javaHome: String?,
+        projectDirectory: Path,
+        pluginGoal: String,
+        progress: WorkspaceImportProgressReporter,
+        additionalParams: List<String> = emptyList()
+    ): MavenRunResult {
+        return runGoal(
+            execPath, javaHome, projectDirectory,
+            "com.jetbrains.ls:imports-maven-plugin:$pluginGoal",
+            progress, additionalParams
+        )
+    }
+
+    private suspend fun runGoal(
         execPath: Path?,
         javaHome: String?,
         projectDirectory: Path,
@@ -116,7 +157,7 @@ object MavenWorkspaceImporter : WorkspaceImporter {
         try {
             val command = listOf(
                 execPath.toString(),
-                "com.jetbrains.ls:imports-maven-plugin:$goal",
+                goal,
                 "-f",
                 "pom.xml",
                 "-DoutputFile=${workspaceJsonFile.toAbsolutePath()}",
@@ -132,7 +173,7 @@ object MavenWorkspaceImporter : WorkspaceImporter {
                     javaHome?.let {
                         environment()["JAVA_HOME"] = it
                     }
-                    if(System.getProperty("maven.importer.debug").toBoolean()) {
+                    if (System.getProperty("maven.importer.debug").toBoolean()) {
                         val agentLibOpt = "-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=*:5005"
                         val currentMavenOpts = environment()["MAVEN_OPTS"]
                         environment()["MAVEN_OPTS"] = if (currentMavenOpts.isNullOrEmpty()) {

@@ -35,13 +35,16 @@ jvm_library(
     "@community//libraries/kotlinx/serialization/core",
     "//language-server/analyzer",
     "//language-server/analyzer.java",
-    "//language-server/community/api.core",
+    "//language-server/api.impl.analyzer",
     "//language-server/community/features-impl/common",
     "@community//platform/core-api:core",
+    "@community//platform/core-impl",
     "@community//platform/analysis-api:analysis",
     "@community//platform/lang-api:lang",
     "@community//java/java-impl:impl",
+    "@community//java/java-psi-api:psi",
     "@community//java/java-backend:backend",
+    "@community//java/java-frontback-psi-api:frontback-psi",
     "//language-server/community/api.features",
     "@community//fleet/lsp.protocol",
   ]
@@ -49,6 +52,7 @@ jvm_library(
 
 jvm_library(
   name = "java-base_test_lib",
+  testonly = True,
   module_name = "language-server.api.features.impl.java-base",
   visibility = ["//visibility:public"],
   srcs = glob([], allow_empty = True),
@@ -60,15 +64,24 @@ jvm_library(
     "@community//libraries/kotlinx/serialization/core:core_test_lib",
     "//language-server/analyzer:analyzer_test_lib",
     "//language-server/analyzer.java:analyzer.java_test_lib",
-    "//language-server/community/api.core:api.core_test_lib",
+    "//language-server/api.impl.analyzer:api.impl.analyzer_test_lib",
     "//language-server/community/features-impl/common:common_test_lib",
     "@community//platform/core-api:core_test_lib",
+    "@community//platform/core-impl:core-impl_test_lib",
     "@community//platform/analysis-api:analysis_test_lib",
     "@community//platform/lang-api:lang_test_lib",
     "@community//java/java-impl:impl_test_lib",
+    "@community//java/java-psi-api:psi_test_lib",
     "@community//java/java-backend:backend_test_lib",
+    "@community//java/java-frontback-psi-api:frontback-psi_test_lib",
     "//language-server/community/api.features:api.features_test_lib",
     "@community//fleet/lsp.protocol:lsp.protocol_test_lib",
   ]
 )
 ### auto-generated section `build language-server.api.features.impl.java-base` end
+
+### auto-generated section `iml language-server.api.features.impl.java-base` start
+exports_files([
+  "language-server.api.features.impl.java-base.iml",
+], visibility = ["//visibility:public"])
+### auto-generated section `iml language-server.api.features.impl.java-base` end

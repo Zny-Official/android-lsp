@@ -10,7 +10,6 @@ import com.intellij.openapi.projectRoots.JavaSdk
 import com.intellij.openapi.projectRoots.impl.JavaHomeFinder
 import com.intellij.openapi.projectRoots.impl.JavaHomeFinder.getFinder
 import com.intellij.openapi.projectRoots.impl.JavaSdkImpl
-import com.intellij.openapi.util.io.FileUtilRt
 import com.intellij.platform.eel.provider.getEelDescriptor
 import com.intellij.platform.workspace.jps.entities.ContentRootEntity
 import com.intellij.platform.workspace.jps.entities.DependencyScope
@@ -38,6 +37,8 @@ import com.intellij.platform.workspace.jps.entities.SourceRootTypeId
 import com.intellij.platform.workspace.storage.EntityStorage
 import com.intellij.platform.workspace.storage.MutableEntityStorage
 import com.intellij.platform.workspace.storage.url.VirtualFileUrlManager
+import com.intellij.util.containers.nullize
+import com.intellij.util.lang.JavaVersion
 import com.jetbrains.ls.imports.api.WorkspaceEntitySource
 import com.jetbrains.ls.imports.api.WorkspaceImportException
 import com.jetbrains.ls.imports.api.WorkspaceImportProgressReporter
@@ -86,9 +87,8 @@ object JpsWorkspaceImporter : WorkspaceImporter {
         virtualFileUrlManager: VirtualFileUrlManager,
         progress: WorkspaceImportProgressReporter
     ): EntityStorage? {
-        if (!isApplicableDirectory(projectDirectory)) return null
+        if (!canImportWorkspace(projectDirectory)) return null
         return try {
-            if (!isApplicableDirectory(projectDirectory)) return null
             val model = JpsElementFactory.getInstance().createModel()
             initGlobalJpsOptions(model)
             val pathVariables = JpsModelSerializationDataService.computeAllPathVariables(model.global)
@@ -106,73 +106,124 @@ object JpsWorkspaceImporter : WorkspaceImporter {
                 map
             }
 
+            // Pre-compute the set of modules each module transitively exports, for flattening.
+            // JPS projects use a non-flat dependency model (A→B→C), so exported transitive deps
+            // must be added as direct deps of each module (like Maven/Gradle importers do).
+            val modulesByName = model.project.modules.associateBy { it.name }
+            val transitiveExportsCache = mutableMapOf<String, Set<String>>()
+
+            fun transitiveExports(moduleName: String): Set<String> {
+                transitiveExportsCache[moduleName]?.let { return it }
+                transitiveExportsCache[moduleName] = emptySet() // guard against dependency cycles
+                val jpsModule = modulesByName[moduleName] ?: return emptySet()
+                val result = buildSet {
+                    for (dep in jpsModule.dependenciesList.dependencies) {
+                        if (dep !is JpsModuleDependency) continue
+                        val depModule = dep.module ?: continue
+                        if (JpsJavaExtensionService.getInstance().getDependencyExtension(dep)?.isExported != true) continue
+                        add(depModule.name)
+                        addAll(transitiveExports(depModule.name))
+                    }
+                }
+                transitiveExportsCache[moduleName] = result
+                return result
+            }
+
             model.project.modules.forEach { module ->
                 val kotlinFacetModuleExtension = module.container.getChild(JpsKotlinFacetModuleExtension.KIND)
+
+                val directDeps = module.dependenciesList.dependencies.mapNotNull { dependency ->
+                    val javaExtension = JpsJavaExtensionService.getInstance().getDependencyExtension(dependency)
+                    when (dependency) {
+                        is JpsLibraryDependency -> {
+                            val library = dependency.library ?: return@mapNotNull null
+                            if (libs.add(library.name)) {
+                                val libEntity = LibraryEntity(
+                                    name = library.name,
+                                    tableId = ProjectLibraryTableId,
+                                    roots = buildList {
+                                        library.getRootUrls(JpsOrderRootType.COMPILED).mapNotNullTo(this) { url ->
+                                            val fileUrl = virtualFileUrlManager.getOrCreateFromUrl(url)
+                                            if (!Path.of(JpsPathUtil.urlToPath(url)).exists()) {
+                                                progress.onUnresolvedDependency(url)
+                                                return@mapNotNull null
+                                            }
+                                            LibraryRoot(
+                                                fileUrl,
+                                                LibraryRootTypeId.COMPILED
+                                            )
+                                        }
+                                        library.getRootUrls(JpsOrderRootType.SOURCES).mapTo(this) { url ->
+                                            LibraryRoot(virtualFileUrlManager.getOrCreateFromUrl(url), LibraryRootTypeId.SOURCES)
+                                        }
+                                    },
+                                    entitySource = entitySource
+                                ) {
+                                    typeId = LibraryTypeId(library.type.javaClass.simpleName)
+                                }
+                                storage addEntity libEntity
+                            }
+                            LibraryDependency(
+                                library = LibraryId(library.name, ProjectLibraryTableId),
+                                exported = javaExtension?.isExported == true,
+                                scope = DependencyScope.valueOf(javaExtension?.scope?.name ?: "COMPILE")
+                            )
+                        }
+
+                        is JpsModuleDependency -> {
+                            val depModule = dependency.module ?: return@mapNotNull null
+                            ModuleDependency(
+                                module = ModuleId(depModule.name),
+                                exported = javaExtension?.isExported == true,
+                                scope = DependencyScope.valueOf(javaExtension?.scope?.name ?: "COMPILE"),
+                                productionOnTest = false
+                            )
+                        }
+
+                        is JpsSdkDependency -> {
+                            val sdkReference = dependency.sdkReference ?: return@mapNotNull null
+                            sdks.add(sdkReference.sdkName)
+                            SdkDependency(
+                                sdk = SdkId(
+                                    name = sdkReference.sdkName,
+                                    type = dependency.sdkType.toSdkType()
+                                )
+                            )
+                        }
+
+                        is JpsModuleSourceDependency -> ModuleSourceDependency
+                        else -> null
+                    }
+                }
+
+                // Add transitively exported module deps as direct deps (flattening).
+                // A module X reachable via an exported chain from direct dep D is added once;
+                // its exported flag mirrors the first-hop dep (A→D) so that downstream modules
+                // that depend on this module also see X when D is exported.
+                val presentModules = directDeps.filterIsInstance<ModuleDependency>().mapTo(mutableSetOf()) { it.module.name }
+                val flattenedDeps = buildList {
+                    for (dep in module.dependenciesList.dependencies) {
+                        if (dep !is JpsModuleDependency) continue
+                        val depModuleName = dep.module?.name ?: continue
+                        val javaExt = JpsJavaExtensionService.getInstance().getDependencyExtension(dep)
+                        val exported = javaExt?.isExported == true
+                        val scope = DependencyScope.valueOf(javaExt?.scope?.name ?: "COMPILE")
+                        for (transitiveName in transitiveExports(depModuleName)) {
+                            if (presentModules.add(transitiveName)) {
+                                add(ModuleDependency(
+                                    module = ModuleId(transitiveName),
+                                    exported = exported,
+                                    scope = scope,
+                                    productionOnTest = false
+                                ))
+                            }
+                        }
+                    }
+                }
+
                 val entity = ModuleEntity(
                     name = module.name,
-                    dependencies = module.dependenciesList.dependencies.mapNotNull { dependency ->
-                        val javaExtension = JpsJavaExtensionService.getInstance().getDependencyExtension(dependency)
-                        when (dependency) {
-                            is JpsLibraryDependency -> {
-                                val library = dependency.library ?: return@mapNotNull null
-                                if (libs.add(library.name)) {
-                                    val libEntity = LibraryEntity(
-                                        name = library.name,
-                                        tableId = ProjectLibraryTableId,
-                                        roots = buildList {
-                                            library.getRootUrls(JpsOrderRootType.COMPILED).mapNotNullTo(this) { url ->
-                                                val fileUrl = virtualFileUrlManager.getOrCreateFromUrl(url)
-                                                if (!Path.of(JpsPathUtil.urlToPath(url)).exists()) {
-                                                    progress.onUnresolvedDependency(url)
-                                                    return@mapNotNull null
-                                                }
-                                                LibraryRoot(
-                                                    fileUrl,
-                                                    LibraryRootTypeId.COMPILED
-                                                )
-                                            }
-                                            library.getRootUrls(JpsOrderRootType.SOURCES).mapTo(this) { url ->
-                                                LibraryRoot(virtualFileUrlManager.getOrCreateFromUrl(url), LibraryRootTypeId.SOURCES)
-                                            }
-                                        },
-                                        entitySource = entitySource
-                                    ) {
-                                        typeId = LibraryTypeId(library.type.javaClass.simpleName)
-                                    }
-                                    storage addEntity libEntity
-                                }
-                                LibraryDependency(
-                                    library = LibraryId(library.name, ProjectLibraryTableId),
-                                    exported = javaExtension?.isExported == true,
-                                    scope = DependencyScope.valueOf(javaExtension?.scope?.name ?: "COMPILE")
-                                )
-                            }
-
-                            is JpsModuleDependency -> {
-                                val module = dependency.module ?: return@mapNotNull null
-                                ModuleDependency(
-                                    module = ModuleId(module.name),
-                                    exported = javaExtension?.isExported == true,
-                                    scope = DependencyScope.valueOf(javaExtension?.scope?.name ?: "COMPILE"),
-                                    productionOnTest = false
-                                )
-                            }
-
-                            is JpsSdkDependency -> {
-                                val sdkReference = dependency.sdkReference ?: return@mapNotNull null
-                                sdks.add(sdkReference.sdkName)
-                                SdkDependency(
-                                    sdk = SdkId(
-                                        name = sdkReference.sdkName,
-                                        type = dependency.sdkType.toSdkType()
-                                    )
-                                )
-                            }
-
-                            is JpsModuleSourceDependency -> ModuleSourceDependency
-                            else -> null
-                        }
-                    },
+                    dependencies = directDeps + flattenedDeps,
                     entitySource = entitySource
                 ) {
                     this.type = ModuleTypeId(with(module.moduleType) {
@@ -304,7 +355,7 @@ object JpsWorkspaceImporter : WorkspaceImporter {
         }
     }
 
-    private fun isApplicableDirectory(projectDirectory: Path): Boolean {
+    override fun canImportWorkspace(projectDirectory: Path): Boolean {
         return (projectDirectory / ".idea" / "modules.xml").exists()
     }
 
@@ -317,32 +368,30 @@ object JpsWorkspaceImporter : WorkspaceImporter {
         val detectedSdks = findJdks(projectDirectory)
         if (detectedSdks.isEmpty()) return emptyList()
         return sdks.map { sdkName ->
-            val sdk = detectedSdks.find {
-                val suggestedName = it.versionInfo?.suggestedName()
-                suggestedName != null && sdkName.contains(suggestedName, ignoreCase = true)
-            } ?: detectedSdks.maxBy { it.versionInfo?.version?.feature ?: 0 }
+            val zeroVersion = JavaVersion.compose(0, 0, 0)
+            val sdk = (detectedSdks.filter { sdk ->
+                sdk.versionInfo?.suggestedName().let { suggestedName ->
+                    suggestedName != null && sdkName.contains(suggestedName, ignoreCase = true)
+                }
+            }.nullize() ?: detectedSdks).maxBy {
+                it.versionInfo?.version ?: zeroVersion
+            }
             LOG.info("Detected SDK [$sdkName]: ${sdk.path}")
-            val classRoots = JavaSdkImpl.findClasses(Path.of(sdk.path), false)
-                .map { (it.replace("!/", "!/modules/")) }
             SdkEntity(
                 name = sdkName,
                 type = JavaSdk.getInstance().name,
                 roots = buildList {
-                    classRoots.mapTo(this) {
+                    JavaSdkImpl.findClasses(Path.of(sdk.path), false).mapTo(this) {
                         SdkRoot(
-                            virtualFileUrlManager.getOrCreateFromUrl(it),
+                            virtualFileUrlManager.getOrCreateFromUrl(it.replace("!/", "!/modules/")),
                             SdkRootTypeId.CLASSES,
                         )
                     }
-                    val srcZip = Path.of(sdk.path, "lib", "src.zip")
-                    if (srcZip.exists()) {
-                        val prefix = "jar://${FileUtilRt.toSystemIndependentName(srcZip.toString())}!/"
-                        classRoots.mapTo(this) {
-                            SdkRoot(
-                                virtualFileUrlManager.getOrCreateFromUrl("$prefix${it.substringAfterLast("/")}"),
-                                SdkRootTypeId.SOURCES,
-                            )
-                        }
+                    JavaSdkImpl.findSources(Path.of(sdk.path)).mapTo(this) {
+                        SdkRoot(
+                            virtualFileUrlManager.getOrCreateFromUrl(it),
+                            SdkRootTypeId.SOURCES,
+                        )
                     }
                 },
                 additionalData = "",

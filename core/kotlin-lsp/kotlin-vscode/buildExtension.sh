@@ -39,21 +39,30 @@ cp -R "$SCRIPT_DIR/icons" "$EXTENSION_DIR"
 cp -R "$SCRIPT_DIR/"*.js "$EXTENSION_DIR"
 cp -R "$SCRIPT_DIR/"*.json "$EXTENSION_DIR"
 cp -R "$SCRIPT_DIR/LICENSE" "$EXTENSION_DIR"
+cp -R "$SCRIPT_DIR/README.md" "$EXTENSION_DIR"
 cp -R "$SCRIPT_DIR/src" "$EXTENSION_DIR"
 cp -R "$SCRIPT_DIR/syntaxes" "$EXTENSION_DIR"
 
 pushd "$EXTENSION_DIR" > /dev/null
 
 # Patch package.json and overlay sources based on bundle type
-if [[ "$BUNDLE_TYPE" != "kotlin-lsp" ]]; then
+if [[ "$BUNDLE_TYPE" != "kotlin-server" ]]; then
   npm run apply-intellij
 fi
 
 # Provide a path to LSP Server, so it will be unpacked during extension packaging
 export LSP_ZIP_PATH
 
-echo "Running npm install and npx vsce package..."
-npm install
+echo "Running npm install..."
+# --ignore-scripts skips native builds (e.g. tree-sitter-sql's legacy node-gyp
+# rebuild, which fails on recent Node versions). Runtime uses web-tree-sitter
+# with prebuilt .wasm files shipped inside the grammar packages.
+npm install --ignore-scripts
+mkdir "grammars"
+echo "Copying wasm modules..."
+cp "node_modules/web-tree-sitter/web-tree-sitter.wasm" "grammars"
+find "node_modules" -name 'tree-sitter-*.wasm' -exec cp {} "grammars" \;
+echo "Running npx vsce package..."
 npx --yes vsce package "$VSCE_VERSION" \
   --out "$BUILD_DIR/$VSIX_TARGET_FILENAME" \
   --baseContentUrl=https://github.com/Kotlin/kotlin-lsp/tree/main/kotlin-vscode
@@ -67,3 +76,5 @@ if [[ ! -f "$BUILD_DIR/$VSIX_TARGET_FILENAME" ]]; then
   echo "Error: vsce package produced no output. Expected: $BUILD_DIR/$VSIX_TARGET_FILENAME" >&2
   exit 1
 fi
+
+echo "##teamcity[publishArtifacts '$BUILD_DIR/$VSIX_TARGET_FILENAME=>$BUNDLE_TYPE']"

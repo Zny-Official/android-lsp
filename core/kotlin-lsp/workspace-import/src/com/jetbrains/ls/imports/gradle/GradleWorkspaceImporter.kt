@@ -16,26 +16,42 @@ import com.jetbrains.ls.imports.api.WorkspaceImporter
 import com.jetbrains.ls.imports.gradle.GradleToolingApiHelper.findTheMostCompatibleJdk
 import com.jetbrains.ls.imports.gradle.GradleToolingApiHelper.getInitScriptPath
 import com.jetbrains.ls.imports.gradle.action.ProjectMetadataBuilder
+import com.jetbrains.ls.imports.gradle.model.builder.PREPARE_KOTLIN_IDEA_IMPORT_TASK_NAME
+import com.jetbrains.ls.imports.gradle.util.GradleOutputStream
 import com.jetbrains.ls.imports.json.JsonWorkspaceImporter.postProcessWorkspaceData
 import com.jetbrains.ls.imports.json.importWorkspaceData
 import com.jetbrains.ls.imports.utils.fixMissingProjectSdk
 import org.gradle.tooling.GradleConnector
+import org.gradle.tooling.events.OperationType
+import org.gradle.tooling.events.ProgressEvent
 import java.io.File
 import java.nio.file.Path
 import kotlin.io.path.absolutePathString
-import kotlin.io.path.Path
 import kotlin.io.path.div
 import kotlin.io.path.exists
 
 private val LOG = logger<GradleWorkspaceImporter>()
 
 object GradleWorkspaceImporter : WorkspaceImporter {
+    private const val IDEA_ACTIVE_PROPERTY: String = "idea.active"
+    private const val IDEA_SYNC_ACTIVE_PROPERTY: String = "idea.sync.active"
+    private const val KOTLIN_LSP_IMPORT_PROPERTY: String = "com.jetbrains.ls.imports.gradle"
+    private val IMPORTER_PROPERTIES: Map<String, String> = mapOf(
+        // This imitates how IntelliJ invokes gradle during sync.
+        // Some builds/plugins depend on this property to configure their build for sync.
+        IDEA_SYNC_ACTIVE_PROPERTY to "true",
+        IDEA_ACTIVE_PROPERTY to "true",
+        // Since this is not actually IntelliJ, offer an alternative identification.
+        KOTLIN_LSP_IMPORT_PROPERTY to "true",
+    )
+
+    const val LSP_GRADLE_JAVA_HOME_PROPERTY: String = "com.jetbrains.ls.imports.gradle.java.home"
     const val LSP_GRADLE_PROJECT_OFFLINE_PROPERTY: String = "com.jetbrains.ls.imports.gradle.offline"
     const val LSP_GRADLE_PROJECT_GRADLE_USER_HOME_PROPERTY: String = "com.jetbrains.ls.imports.gradle.gradleUserHome"
     const val LSP_GRADLE_PROJECT_SELF_CONTAINED_INIT_SCRIPT: String = "com.jetbrains.ls.imports.gradle.selfContainedInitScript"
     const val LSP_GRADLE_PROJECT_SELF_CONTAINED_PROXY_URL_PROPERTY: String = "com.jetbrains.ls.imports.gradle.selfContainedProxyUrl"
 
-    private fun isApplicableDirectory(projectDirectory: Path): Boolean {
+    override fun canImportWorkspace(projectDirectory: Path): Boolean {
         return listOf(
             "build.gradle",
             "build.gradle.kts",
@@ -51,7 +67,7 @@ object GradleWorkspaceImporter : WorkspaceImporter {
         virtualFileUrlManager: VirtualFileUrlManager,
         progress: WorkspaceImportProgressReporter
     ): EntityStorage? {
-        if (!isApplicableDirectory(projectDirectory)) return null
+        if (!canImportWorkspace(projectDirectory)) return null
 
         LOG.info("Importing Gradle project from: $projectDirectory")
 
@@ -73,22 +89,30 @@ object GradleWorkspaceImporter : WorkspaceImporter {
                 try {
                     val builder = it.action(ProjectMetadataBuilder())
                         .addArguments("--stacktrace", "--init-script", initScriptPath.absolutePathString())
+                        .withSystemProperties(IMPORTER_PROPERTIES)
+                        .forTasks(PREPARE_KOTLIN_IDEA_IMPORT_TASK_NAME)
                         .also { builder ->
-                        if (System.getProperty(LSP_GRADLE_PROJECT_OFFLINE_PROPERTY)?.toBoolean() == true) {
-                            System.getProperty(LSP_GRADLE_PROJECT_SELF_CONTAINED_INIT_SCRIPT)?.let { initScript ->
-                                builder.addArguments(
-                                    "--init-script",
-                                    Path.of(initScript).toString()
+                            if (System.getProperty(LSP_GRADLE_PROJECT_OFFLINE_PROPERTY)?.toBoolean() == true) {
+                                System.getProperty(LSP_GRADLE_PROJECT_SELF_CONTAINED_INIT_SCRIPT)?.let { initScript ->
+                                    builder.addArguments(
+                                        "--init-script",
+                                        Path.of(initScript).toString()
+                                    )
+                                }?.setEnvironmentVariables(
+                                    mapOf(
+                                        "SELF_CONTAINED_PROXY_URL" to System.getProperty(LSP_GRADLE_PROJECT_SELF_CONTAINED_PROXY_URL_PROPERTY),
+                                        "GRADLE_USER_HOME" to System.getProperty(LSP_GRADLE_PROJECT_GRADLE_USER_HOME_PROPERTY)
+                                    )
                                 )
-                            }?.setEnvironmentVariables(
-                                mapOf(
-                                    "SELF_CONTAINED_PROXY_URL" to System.getProperty(LSP_GRADLE_PROJECT_SELF_CONTAINED_PROXY_URL_PROPERTY),
-                                    "GRADLE_USER_HOME" to System.getProperty(LSP_GRADLE_PROJECT_GRADLE_USER_HOME_PROPERTY)
-                                )
-                            )
+                            }
                         }
-                    }
-                    .withCancellationToken(GradleConnector.newCancellationTokenSource().token())
+                        .setStandardOutput(GradleOutputStream { line -> progress.onStdOutput(line) })
+                        .setStandardError(GradleOutputStream { line -> progress.onErrorOutput(line) })
+                        .addProgressListener(
+                            GradleProgressListener { line -> progress.progressStatus(line) },
+                            setOf(OperationType.GENERIC, OperationType.FILE_DOWNLOAD, OperationType.PROJECT_CONFIGURATION)
+                        )
+                        .withCancellationToken(GradleConnector.newCancellationTokenSource().token())
                     val jdkToUse = findTheMostCompatibleJdk(project, projectDirectory)
                     if (jdkToUse != null) {
                         builder.setJavaHome(File(jdkToUse))
@@ -112,6 +136,12 @@ object GradleWorkspaceImporter : WorkspaceImporter {
                 ignoreDuplicateLibsAndSdks = true,
             )
             fixMissingProjectSdk(defaultSdkPath, virtualFileUrlManager)
+        }
+    }
+
+    private class GradleProgressListener(private val lineConsumer: (line: String) -> Unit) : org.gradle.tooling.events.ProgressListener {
+        override fun statusChanged(event: ProgressEvent) {
+            lineConsumer(event.displayName)
         }
     }
 }

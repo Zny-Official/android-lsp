@@ -4,6 +4,7 @@
 package com.jetbrains.ls.imports.gradle
 
 import com.intellij.openapi.diagnostic.logger
+import com.intellij.util.containers.addIfNotNull
 import com.jetbrains.ls.imports.gradle.action.ProjectMetadata
 import com.jetbrains.ls.imports.gradle.model.KotlinModule
 import com.jetbrains.ls.imports.gradle.model.ModuleSourceSet
@@ -13,89 +14,91 @@ import com.jetbrains.ls.imports.json.JavaSettingsData
 import com.jetbrains.ls.imports.json.KotlinSettingsData
 import com.jetbrains.ls.imports.json.ModuleData
 import com.jetbrains.ls.imports.json.SdkData
-import com.jetbrains.ls.imports.json.SourceRootData
 import com.jetbrains.ls.imports.json.WorkspaceData
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import org.gradle.tooling.model.HierarchicalElement
+import org.gradle.api.JavaVersion
 import org.gradle.tooling.model.idea.IdeaJavaLanguageSettings
 import org.gradle.tooling.model.idea.IdeaModule
 import org.gradle.tooling.model.idea.IdeaProject
-import java.io.File
 import java.nio.file.Path
 import kotlin.io.path.exists
 
 internal class IdeaProjectMapper {
 
     private val LOG = logger<IdeaProjectMapper>()
-    private val dependencyResolver: SourceSetDependencyResolver = SourceSetDependencyResolver()
+    private val projectJdkCache: MutableMap<String, SdkData?> = mutableMapOf()
+    private val projectJavaLanguageLevel: MutableMap<String, String?> = mutableMapOf()
 
     fun toWorkspaceData(metadata: ProjectMetadata): WorkspaceData {
         val sdks: MutableList<SdkData> = mutableListOf()
         val javaSettings: MutableList<JavaSettingsData> = mutableListOf()
+
+        fillProjectJdkCache(metadata.includedProjects)
+        val dependencyResolver = SourceSetDependencyResolver(metadata)
+        val contentRootResolver = GradleContentRootResolver(metadata)
+
         val modules = mutableMapOf<String, ModuleData>()
-
-        val allGradleModules: List<IdeaModule> = metadata.includedProjects.flatMap { it.modules }
-        dependencyResolver.init(allGradleModules, metadata.sourceSets)
-
-        allGradleModules
-            .map {
+        metadata.includedProjects.flatMap { it.modules }
+            .map { module ->
                 splitModulePerSourceSet(
-                    it,
-                    metadata,
-                    { moduleJavaSettings -> javaSettings.add(moduleJavaSettings) },
-                    { sdk -> sdks.add(sdk) }
+                    module = module,
+                    metadata = metadata,
+                    dependencyResolver = dependencyResolver,
+                    contentRootResolver = contentRootResolver,
+                    javaSettingsConsumer = { moduleJavaSettings -> javaSettings.add(moduleJavaSettings) },
+                    sdkConsumer = { sdk -> sdks.add(sdk) }
                 )
             }
             .forEach { modules.putAll(it) }
 
+        val projectJdks = projectJdkCache.values
+            .filterNotNull()
+            .distinctBy { it.name }
+        sdks.addAll(projectJdks)
+
         return WorkspaceData(
             modules = modules.values.toList(),
-            libraries = dependencyResolver.getProjectDependencies(),
+            libraries = dependencyResolver.getProjectLibraries(),
             sdks = sdks,
             javaSettings = javaSettings,
-            kotlinSettings = calculateKotlinSettings(modules, metadata.kotlinModules)
+            kotlinSettings = calculateKotlinSettings(modules, metadata.kotlinModules, metadata.sourceSets)
         )
     }
 
-
-    private val mainSourceSetSuffix: String = ".main"
-    private val testSourceSetSuffix: String = ".test"
-
-    /**
-     * We provide a very simple "naive" implementation of determining the modules
-     * with additional visibility (== "friend" modules):
-     *
-     * For each `.test` module, we consider the matching `.main` module to be a "friend" module.
-     * This way, `test` modules would be able to correctly see the internal declarations from
-     * the `main` modules, which is how it's supposed to work.
-     *
-     * In the future this should be replaced with a proper solution. See LSP-732.
-     */
-    private fun computeAdditionalVisibleModuleNames(moduleName: String): Set<String> {
-        val matchingMainModuleName = if (moduleName.endsWith(testSourceSetSuffix)) {
-            moduleName.removeSuffix(testSourceSetSuffix) + mainSourceSetSuffix
-        } else {
-            null
+    private fun fillProjectJdkCache(includedProjects: List<IdeaProject>) {
+        for (project in includedProjects) {
+            projectJdkCache[project.name] = project.getProjectJdk()
         }
-
-        return setOfNotNull(
-            matchingMainModuleName,
-        )
     }
 
     private fun calculateKotlinSettings(
         modules: Map<String, ModuleData>,
-        kotlinModules: Map<String, KotlinModule>
+        kotlinModules: Map<String, KotlinModule>,
+        sourceSets: Map<String, Set<ModuleSourceSet>>
     ): List<KotlinSettingsData> {
+
+        data class SourceSetInfo(
+            val parentModuleName: String,
+            val moduleSourceSet: ModuleSourceSet,
+        )
+
+        /* Index source sets by their module 'fqn' */
+        val sourceSetFqnIndex = buildMap {
+            sourceSets.forEach { (parentModuleName, sourceSets) ->
+                sourceSets.forEach { sourceSet ->
+                    put("$parentModuleName.${sourceSet.name}", SourceSetInfo(parentModuleName, sourceSet))
+                }
+            }
+        }
+
         val result = mutableListOf<KotlinSettingsData>()
         for ((name, moduleData) in modules) {
             if (!moduleData.hasValidSourceRoots()) {
                 continue
             }
-            val kotlinModuleKey = name.removeSuffix(mainSourceSetSuffix)
-                .removeSuffix(testSourceSetSuffix)
-            val kotlinModule = kotlinModules[kotlinModuleKey]
+            val kotlinModuleKey = sourceSetFqnIndex[name]?.parentModuleName ?: name
+            val kotlinModule = sourceSetFqnIndex[name]?.moduleSourceSet?.kotlinModule ?: kotlinModules[kotlinModuleKey]
             if (kotlinModule == null) {
                 continue
             }
@@ -114,7 +117,9 @@ internal class IdeaProjectMapper {
                     useProjectSettings = false,
                     implementedModuleNames = emptyList(),
                     dependsOnModuleNames = emptyList(),
-                    additionalVisibleModuleNames = computeAdditionalVisibleModuleNames(name),
+                    additionalVisibleModuleNames = sourceSetFqnIndex[name]?.moduleSourceSet?.friendSourceSets.orEmpty()
+                        .map { friendModuleName -> moduleData.resolveSiblingName(friendModuleName) }
+                        .toSet(),
                     productionOutputPath = null,
                     testOutputPath = null,
                     sourceSetNames = emptyList(),
@@ -142,10 +147,11 @@ internal class IdeaProjectMapper {
     private fun splitModulePerSourceSet(
         module: IdeaModule,
         metadata: ProjectMetadata,
+        dependencyResolver: SourceSetDependencyResolver,
+        contentRootResolver: GradleContentRootResolver,
         javaSettingsConsumer: (JavaSettingsData) -> Unit,
         sdkConsumer: (SdkData) -> Unit
     ): Map<String, ModuleData> {
-        val moduleName = module.getFqdn()
         val modules = mutableMapOf<String, ModuleData>()
         val moduleSdk = getSdkData(module)
         if (moduleSdk != null) {
@@ -156,8 +162,8 @@ internal class IdeaProjectMapper {
         } else {
             DependencyData.InheritedSdk
         }
-        modules[moduleName] = ModuleData(
-            name = moduleName,
+        modules[module.name] = ModuleData(
+            name = module.name,
             dependencies = listOf(
                 DependencyData.ModuleSource,
                 sdkDependencyData
@@ -166,113 +172,77 @@ internal class IdeaProjectMapper {
                 ContentRootData(module.gradleProject.projectDirectory.path)
             )
         )
-        val javaSettings = getJavaSettingsData(module, module)
-        if (javaSettings != null) {
-            javaSettingsConsumer(javaSettings)
-        }
-        val associatedSourceSets = metadata.sourceSets[moduleName]
+        val associatedSourceSets = metadata.sourceSets[module.name]
         if (associatedSourceSets.isNullOrEmpty()) {
-            LOG.info("$moduleName has an empty set of source sets")
+            LOG.info("${module.name} has an empty set of source sets")
             return modules
         }
-
+        val moduleJavaSettings: MutableList<JavaSettingsData> = mutableListOf()
+        val projectJavaLevel = projectJavaLanguageLevel.computeIfAbsent(module.project.name) {
+            module.project.getJavaLanguageLevel(metadata)
+        }
         associatedSourceSets.forEach { sourceSet ->
             val sourceSetDependencies = mutableListOf<DependencyData>()
                 .apply {
                     if (sourceSet.hasUnresolvedDependencies()) {
                         addAll(dependencyResolver.resolveDependenciesFromIdeaModule(module, sourceSet))
                     } else {
-                        addAll(dependencyResolver.resolveDependencies(moduleName, sourceSet))
+                        addAll(dependencyResolver.resolveDependencies(module.name, sourceSet))
                     }
                     add(DependencyData.ModuleSource)
                     add(sdkDependencyData)
                 }
 
-            modules["$moduleName.${sourceSet.name}"] = ModuleData(
-                name = "$moduleName.${sourceSet.name}",
+            modules["${module.name}.${sourceSet.name}"] = ModuleData(
+                name = "${module.name}.${sourceSet.name}",
                 dependencies = sourceSetDependencies,
-                contentRoots = sourceSet.toContentRootData(
-                    module.gradleProject.projectDirectory,
-                    sourceSet.isTest()
-                )
+                contentRoots = contentRootResolver.getContentRoots(module, sourceSet)
             )
-            if (javaSettings != null) {
-                javaSettingsConsumer(
-                    javaSettings.copy(module = "$moduleName.${sourceSet.name}")
-                )
-            }
+            val sourceSetJavaSettings = getModuleJavaSettingsData(
+                "${module.name}.${sourceSet.name}",
+                module,
+                projectJavaLevel,
+                sourceSet
+            )
+            moduleJavaSettings.addIfNotNull(sourceSetJavaSettings)
         }
+        val rootModuleJavaSettings = moduleJavaSettings
+            .filter { it.languageLevelId != null }
+            .minByOrNull { com.intellij.util.lang.JavaVersion.parse(it.languageLevelId!!) }
+        if (rootModuleJavaSettings != null) {
+            moduleJavaSettings.add(rootModuleJavaSettings.copy(module = module.name))
+        } else {
+            moduleJavaSettings.addIfNotNull(getModuleJavaSettingsData(module.name, module, projectJavaLevel, null))
+        }
+        moduleJavaSettings.forEach { javaSettingsConsumer(it) }
         return modules
     }
 
-    private fun ModuleSourceSet.toContentRootData(moduleRoot: File, isTest: Boolean): List<ContentRootData> {
-        val sourceRoots = mutableListOf<SourceRootData>()
-        for (sourceRootFolder in sources) {
-            if (sourceRootFolder.exists() && sourceRootFolder.isDirectory) {
-                sourceRoots.add(
-                    SourceRootData(
-                        sourceRootFolder.path,
-                        getSourceFolderType(sourceRootFolder, isTest)
-                    )
-                )
-            }
-        }
-        for (sourceRootFolder in resources) {
-            if (sourceRootFolder.exists() && sourceRootFolder.isDirectory) {
-                sourceRoots.add(
-                    SourceRootData(
-                        sourceRootFolder.path,
-                        if (isTest) "java-test-resource" else "java-resource"
-                    )
-                )
-            }
-        }
-        return listOf(
-            ContentRootData(
-                findRootForSourceRoots(name, moduleRoot, sourceRoots),
-                emptyList(),
-                excludes.toMutableList(),
-                sourceRoots = sourceRoots
-            )
-        )
+    private fun ModuleData.resolveSiblingName(mame: String): String {
+        return name.split(".").dropLast(1).joinToString(".") + "." + mame
     }
 
-    private fun getSourceFolderType(file: File, isTest: Boolean): String {
-        val folderName = file.name
-        val prefix = when (folderName.lowercase()) {
-            "kotlin" -> "kotlin"
-            "groovy" -> "groovy"
-            else -> "java"
-        }
-        return if (isTest) "$prefix-test" else "$prefix-source"
-    }
-
-    private fun findRootForSourceRoots(sourceSetName: String, moduleRoot:File, sourceRoots: List<SourceRootData>): String {
-        if (sourceRoots.isEmpty() || sourceRoots.size == 1) {
-            return  "${moduleRoot.path}/src/$sourceSetName"
-        }
-        return findCommonPrefix(sourceRoots.map { it.path })
-    }
-
-    private fun findCommonPrefix(strings: List<String>): String {
-        if (strings.isEmpty()) {
-            return ""
-        }
-        var result = ""
-        strings.first()
-            .indices
-            .forEach { currentLetterIndex ->
-                val currentChar = strings[0][currentLetterIndex]
-                for (currentStringIndex in 1 until strings.size) {
-                    if (
-                        currentLetterIndex >= strings[currentStringIndex].length || strings[currentStringIndex][currentLetterIndex] != currentChar
-                    ) {
-                        return result
-                    }
+    private fun IdeaProject.getJavaLanguageLevel(projectMetadata: ProjectMetadata): String? {
+        val mayBeJavaLevel = modules
+            .associate { it.javaLanguageSettings to (projectMetadata.sourceSets[it.name] ?: emptySet()) }
+            .flatMap { javaLanguageToSourceSets ->
+                val moduleSourceSets = javaLanguageToSourceSets.value
+                val sourceSetCompatibility = moduleSourceSets.mapNotNull { it.sourceCompatibility }
+                    .map { com.intellij.util.lang.JavaVersion.parse(it) }
+                if (!sourceSetCompatibility.isEmpty()) {
+                    return@flatMap sourceSetCompatibility
                 }
-                result += currentChar
-            }
-        return result
+                val javaSettings = javaLanguageToSourceSets.key?.languageLevel?.getJavaVersion()
+                if (javaSettings != null) {
+                    return@flatMap listOf(com.intellij.util.lang.JavaVersion.parse(javaSettings))
+                }
+                return@flatMap emptyList()
+            }.minOrNull()
+        if (mayBeJavaLevel != null) {
+            return mayBeJavaLevel.toString()
+        }
+        return languageLevel?.level?.replace("JDK_", "")
+            ?: javaLanguageSettings?.languageLevel?.getJavaVersion()
     }
 
     private fun ModuleData.hasValidSourceRoots(): Boolean {
@@ -281,32 +251,65 @@ internal class IdeaProjectMapper {
             .any { Path.of(it.path).exists() }
     }
 
-    private fun getJavaSettingsData(module: IdeaModule, javaInformationSource: HierarchicalElement): JavaSettingsData? {
-        if (javaInformationSource is IdeaModule && javaInformationSource.javaLanguageSettings.isSpecified()) {
-            return JavaSettingsData(
-                module = module.getFqdn(),
-                inheritedCompilerOutput = module.compilerOutput?.inheritOutputDirs ?: false,
-                compilerOutput = module.compilerOutput?.outputDir?.path,
-                compilerOutputForTests = module.compilerOutput?.testOutputDir?.path,
-                languageLevelId = javaInformationSource.javaLanguageSettings?.targetBytecodeVersion?.name?.replace("VERSION", "JDK"),
-                manifestAttributes = emptyMap(),
-                excludeOutput = false
-            )
-        } else if (javaInformationSource is IdeaProject) {
-            if (javaInformationSource.javaLanguageSettings.isSpecified()) {
-                return JavaSettingsData(
-                    module = module.getFqdn(),
-                    inheritedCompilerOutput = module.compilerOutput?.inheritOutputDirs ?: false,
-                    compilerOutput = module.compilerOutput?.outputDir?.path,
-                    compilerOutputForTests = module.compilerOutput?.testOutputDir?.path,
-                    languageLevelId = javaInformationSource.javaLanguageSettings?.targetBytecodeVersion?.name?.replace("VERSION", "JDK"),
-                    manifestAttributes = emptyMap(),
-                    excludeOutput = false
-                )
+    private fun getModuleJavaSettingsData(
+        moduleName: String,
+        module: IdeaModule,
+        projectJavaLevel: String?,
+        sourceSet: ModuleSourceSet?
+    ): JavaSettingsData? {
+        // project java settings should be used for the buildSrc project
+        if (module.name.contains("buildSrc") && module.project.javaLanguageSettings.isSpecified()) {
+            val targetJavaVersion = module.project.javaLanguageSettings
+                ?.targetBytecodeVersion
+                ?.getJavaVersion()
+            if (targetJavaVersion != null) {
+                return getJavaSettingsData(moduleName, module, targetJavaVersion)
             }
         }
-        val parent = javaInformationSource.parent ?: return null
-        return getJavaSettingsData(module, parent)
+        val targetJavaVersion = when {
+            sourceSet.isToolchainSpecified() -> sourceSet!!.toolchainVersion.toString()
+            sourceSet.isCompileTaskSpecified() -> sourceSet!!.targetCompatibility ?: sourceSet.sourceCompatibility
+            module.javaLanguageSettings.isSpecified() -> module.javaLanguageSettings?.targetBytecodeVersion?.getJavaVersion()
+            else -> null
+        }
+        if (targetJavaVersion == projectJavaLevel) {
+            return null
+        }
+        return getJavaSettingsData(moduleName, module, targetJavaVersion)
+    }
+
+    private fun ModuleSourceSet?.isToolchainSpecified(): Boolean {
+        if (this == null) {
+            return false
+        }
+        return toolchainVersion != null
+    }
+
+    private fun ModuleSourceSet?.isCompileTaskSpecified(): Boolean {
+        if (this == null) {
+            return false
+        }
+        return sourceCompatibility != null || targetCompatibility != null
+    }
+
+    private fun JavaVersion.getJavaVersion(): String {
+        return name.replace("VERSION_", "")
+            .replace("_", ".")
+    }
+
+    private fun getJavaSettingsData(moduleName: String, module: IdeaModule, targetJavaVersion: String?): JavaSettingsData? {
+        if (targetJavaVersion == null) {
+            return null
+        }
+        return JavaSettingsData(
+            module = moduleName,
+            inheritedCompilerOutput = module.compilerOutput?.inheritOutputDirs ?: false,
+            compilerOutput = module.compilerOutput?.outputDir?.path,
+            compilerOutputForTests = module.compilerOutput?.testOutputDir?.path,
+            languageLevelId = "JDK_${targetJavaVersion}",
+            manifestAttributes = emptyMap(),
+            excludeOutput = false
+        )
     }
 
     private fun IdeaJavaLanguageSettings?.isSpecified(): Boolean {
@@ -316,6 +319,10 @@ internal class IdeaProjectMapper {
     private fun getSdkData(module: IdeaModule): SdkData? {
         return if (module.javaLanguageSettings.isSpecified()) {
             val jdkSettings = module.javaLanguageSettings?.jdk ?: return null
+            val projectJdk = projectJdkCache.computeIfAbsent(module.project.name) { module.project.getProjectJdk() }
+            if (jdkSettings.javaVersion.name == projectJdk?.name) {
+                return null
+            }
             SdkData(
                 name = module.jdkName,
                 type = "jdk",
@@ -326,6 +333,16 @@ internal class IdeaProjectMapper {
         } else {
             null
         }
+    }
+
+    private fun IdeaProject.getProjectJdk(): SdkData {
+        return SdkData(
+            name = jdkName,
+            type = "jdk",
+            homePath = javaLanguageSettings?.jdk?.javaHome?.path,
+            version = javaLanguageSettings?.jdk?.javaVersion?.majorVersion?.let { "JDK_$it" },
+            additionalData = ""
+        )
     }
 
     @Serializable

@@ -3,8 +3,10 @@ package com.jetbrains.ls.imports.gradle
 
 import com.jetbrains.ls.imports.gradle.model.ModuleSourceSet
 import org.gradle.tooling.model.ExternalDependency
-import org.gradle.tooling.model.HierarchicalElement
-import org.gradle.tooling.model.idea.IdeaModule
+import org.gradle.tooling.model.UnsupportedMethodException
+import org.gradle.tooling.model.idea.IdeaDependency
+import org.gradle.tooling.model.idea.IdeaModuleDependency
+import org.gradle.tooling.model.idea.IdeaSingleEntryLibraryDependency
 
 fun ExternalDependency.getLibraryName(): String {
     if (gradleModuleVersion != null) {
@@ -16,17 +18,22 @@ fun ExternalDependency.getLibraryName(): String {
     return "Gradle: ${file?.name}"
 }
 
-fun IdeaModule.getFqdn(): String {
-    var fqdn = name
-    if (name == project.name) {
-        return name
+fun ModuleSourceSet.isTest(): Boolean = name.lowercase().contains("test")
+
+fun IdeaDependency.isExportedSafe(): Boolean {
+    return try {
+        when (this) {
+            is IdeaSingleEntryLibraryDependency -> isExported
+            is IdeaModuleDependency -> exported
+            else -> false
+        }
+    } catch (_: UnsupportedMethodException) {
+        false
     }
-    var currentParent: HierarchicalElement? = parent
-    while (currentParent != null) {
-        fqdn = "${currentParent.name}.$fqdn"
-        currentParent = currentParent.parent
-    }
-    return fqdn
 }
 
-fun ModuleSourceSet.isTest(): Boolean = name.lowercase().contains("test")
+fun <K, V> MutableMap<K, V>.putNotNullValue(key: K, value: V?) {
+    if (value != null) {
+        put(key, value)
+    }
+}

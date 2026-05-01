@@ -7,7 +7,9 @@
                     "type": "moduleSource"
                 },
                 {
-                    "type": "inheritedSdk"
+                    "type": "sdk",
+                    "name": "17",
+                    "kind": "jdk"
                 }
             ],
             "contentRoots": [
@@ -23,7 +25,9 @@
                     "type": "moduleSource"
                 },
                 {
-                    "type": "inheritedSdk"
+                    "type": "sdk",
+                    "name": "17",
+                    "kind": "jdk"
                 }
             ],
             "contentRoots": [
@@ -59,7 +63,9 @@
                     "type": "moduleSource"
                 },
                 {
-                    "type": "inheritedSdk"
+                    "type": "sdk",
+                    "name": "17",
+                    "kind": "jdk"
                 }
             ],
             "contentRoots": [
@@ -72,7 +78,7 @@
                         },
                         {
                             "path": "<WORKSPACE>/app/src/main/kotlin",
-                            "type": "kotlin-source"
+                            "type": "java-source"
                         },
                         {
                             "path": "<WORKSPACE>/app/src/main/resources",
@@ -114,7 +120,9 @@
                     "type": "moduleSource"
                 },
                 {
-                    "type": "inheritedSdk"
+                    "type": "sdk",
+                    "name": "17",
+                    "kind": "jdk"
                 }
             ],
             "contentRoots": [
@@ -127,7 +135,7 @@
                         },
                         {
                             "path": "<WORKSPACE>/app/src/test/kotlin",
-                            "type": "kotlin-test"
+                            "type": "java-test"
                         },
                         {
                             "path": "<WORKSPACE>/app/src/test/resources",
@@ -144,7 +152,9 @@
                     "type": "moduleSource"
                 },
                 {
-                    "type": "inheritedSdk"
+                    "type": "sdk",
+                    "name": "17",
+                    "kind": "jdk"
                 }
             ],
             "contentRoots": [
@@ -175,12 +185,24 @@
                     "type": "moduleSource"
                 },
                 {
-                    "type": "inheritedSdk"
+                    "type": "sdk",
+                    "name": "17",
+                    "kind": "jdk"
                 }
             ],
             "contentRoots": [
                 {
-                    "path": "<WORKSPACE>/lib/src/integrationTest"
+                    "path": "<WORKSPACE>/lib/src/integrationTest",
+                    "sourceRoots": [
+                        {
+                            "path": "<WORKSPACE>/lib/src/integrationTest/kotlin",
+                            "type": "java-test"
+                        },
+                        {
+                            "path": "<WORKSPACE>/lib/src/integrationTest/resources",
+                            "type": "java-test-resource"
+                        }
+                    ]
                 }
             ]
         },
@@ -201,7 +223,9 @@
                     "type": "moduleSource"
                 },
                 {
-                    "type": "inheritedSdk"
+                    "type": "sdk",
+                    "name": "17",
+                    "kind": "jdk"
                 }
             ],
             "contentRoots": [
@@ -214,7 +238,7 @@
                         },
                         {
                             "path": "<WORKSPACE>/lib/src/main/kotlin",
-                            "type": "kotlin-source"
+                            "type": "java-source"
                         },
                         {
                             "path": "<WORKSPACE>/lib/src/main/resources",
@@ -246,7 +270,9 @@
                     "type": "moduleSource"
                 },
                 {
-                    "type": "inheritedSdk"
+                    "type": "sdk",
+                    "name": "17",
+                    "kind": "jdk"
                 }
             ],
             "contentRoots": [
@@ -259,7 +285,7 @@
                         },
                         {
                             "path": "<WORKSPACE>/lib/src/test/kotlin",
-                            "type": "kotlin-test"
+                            "type": "java-test"
                         },
                         {
                             "path": "<WORKSPACE>/lib/src/test/resources",
@@ -286,7 +312,9 @@
                     "type": "moduleSource"
                 },
                 {
-                    "type": "inheritedSdk"
+                    "type": "sdk",
+                    "name": "17",
+                    "kind": "jdk"
                 }
             ],
             "contentRoots": [
@@ -299,7 +327,7 @@
                         },
                         {
                             "path": "<WORKSPACE>/src/main/kotlin",
-                            "type": "kotlin-source"
+                            "type": "java-source"
                         },
                         {
                             "path": "<WORKSPACE>/src/main/resources",
@@ -331,7 +359,9 @@
                     "type": "moduleSource"
                 },
                 {
-                    "type": "inheritedSdk"
+                    "type": "sdk",
+                    "name": "17",
+                    "kind": "jdk"
                 }
             ],
             "contentRoots": [
@@ -344,7 +374,7 @@
                         },
                         {
                             "path": "<WORKSPACE>/src/test/kotlin",
-                            "type": "kotlin-test"
+                            "type": "java-test"
                         },
                         {
                             "path": "<WORKSPACE>/src/test/resources",
@@ -420,6 +450,16 @@
             }
         }
     ],
+    "sdks": [
+        {
+            "name": "17",
+            "type": "jdk",
+            "version": "JDK_17",
+            "homePath": null,
+            "roots": [],
+            "additionalData": ""
+        }
+    ],
     "kotlinSettings": [
         {
             "name": "Kotlin",
@@ -472,6 +512,36 @@
             "sourceSetNames": [],
             "isTestModule": true,
             "externalProjectId": "multi-project-source-sets.app.test",
+            "isHmppEnabled": true,
+            "pureKotlinSourceFolders": [],
+            "kind": "default",
+            "compilerArguments": "J{\"jvmTarget\":\"21\",\"pluginOptions\":[],\"pluginClasspaths\":[]}",
+            "additionalArguments": null,
+            "scriptTemplates": null,
+            "scriptTemplatesClasspath": null,
+            "outputDirectoryForJsLibraryFiles": null,
+            "targetPlatform": null,
+            "externalSystemRunTasks": [],
+            "version": 5,
+            "flushNeeded": false
+        },
+        {
+            "name": "Kotlin",
+            "sourceRoots": [
+                "<WORKSPACE>/lib/src/integrationTest/kotlin",
+                "<WORKSPACE>/lib/src/integrationTest/resources"
+            ],
+            "configFileItems": [],
+            "module": "multi-project-source-sets.lib.integrationTest",
+            "useProjectSettings": false,
+            "implementedModuleNames": [],
+            "dependsOnModuleNames": [],
+            "additionalVisibleModuleNames": [],
+            "productionOutputPath": null,
+            "testOutputPath": null,
+            "sourceSetNames": [],
+            "isTestModule": false,
+            "externalProjectId": "multi-project-source-sets.lib.integrationTest",
             "isHmppEnabled": true,
             "pureKotlinSourceFolders": [],
             "kind": "default",
@@ -612,98 +682,6 @@
             "externalSystemRunTasks": [],
             "version": 5,
             "flushNeeded": false
-        }
-    ],
-    "javaSettings": [
-        {
-            "module": "multi-project-source-sets",
-            "inheritedCompilerOutput": false,
-            "excludeOutput": false,
-            "compilerOutput": null,
-            "compilerOutputForTests": null,
-            "languageLevelId": "JDK_21",
-            "manifestAttributes": {}
-        },
-        {
-            "module": "multi-project-source-sets.app",
-            "inheritedCompilerOutput": false,
-            "excludeOutput": false,
-            "compilerOutput": null,
-            "compilerOutputForTests": null,
-            "languageLevelId": "JDK_21",
-            "manifestAttributes": {}
-        },
-        {
-            "module": "multi-project-source-sets.app.main",
-            "inheritedCompilerOutput": false,
-            "excludeOutput": false,
-            "compilerOutput": null,
-            "compilerOutputForTests": null,
-            "languageLevelId": "JDK_21",
-            "manifestAttributes": {}
-        },
-        {
-            "module": "multi-project-source-sets.app.test",
-            "inheritedCompilerOutput": false,
-            "excludeOutput": false,
-            "compilerOutput": null,
-            "compilerOutputForTests": null,
-            "languageLevelId": "JDK_21",
-            "manifestAttributes": {}
-        },
-        {
-            "module": "multi-project-source-sets.lib",
-            "inheritedCompilerOutput": false,
-            "excludeOutput": false,
-            "compilerOutput": null,
-            "compilerOutputForTests": null,
-            "languageLevelId": "JDK_21",
-            "manifestAttributes": {}
-        },
-        {
-            "module": "multi-project-source-sets.lib.integrationTest",
-            "inheritedCompilerOutput": false,
-            "excludeOutput": false,
-            "compilerOutput": null,
-            "compilerOutputForTests": null,
-            "languageLevelId": "JDK_21",
-            "manifestAttributes": {}
-        },
-        {
-            "module": "multi-project-source-sets.lib.main",
-            "inheritedCompilerOutput": false,
-            "excludeOutput": false,
-            "compilerOutput": null,
-            "compilerOutputForTests": null,
-            "languageLevelId": "JDK_21",
-            "manifestAttributes": {}
-        },
-        {
-            "module": "multi-project-source-sets.lib.test",
-            "inheritedCompilerOutput": false,
-            "excludeOutput": false,
-            "compilerOutput": null,
-            "compilerOutputForTests": null,
-            "languageLevelId": "JDK_21",
-            "manifestAttributes": {}
-        },
-        {
-            "module": "multi-project-source-sets.main",
-            "inheritedCompilerOutput": false,
-            "excludeOutput": false,
-            "compilerOutput": null,
-            "compilerOutputForTests": null,
-            "languageLevelId": "JDK_21",
-            "manifestAttributes": {}
-        },
-        {
-            "module": "multi-project-source-sets.test",
-            "inheritedCompilerOutput": false,
-            "excludeOutput": false,
-            "compilerOutput": null,
-            "compilerOutputForTests": null,
-            "languageLevelId": "JDK_21",
-            "manifestAttributes": {}
         }
     ]
 }

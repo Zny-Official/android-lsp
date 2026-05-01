@@ -33,7 +33,6 @@ jvm_library(
     "@community//libraries/kotlinx/coroutines/core",
     "@community//libraries/kotlinx/serialization/json",
     "@community//libraries/kotlinx/serialization/core",
-    "//language-server/community/api.core",
     "//language-server/community/features-impl/common",
     "@community//platform/core-api:core",
     "@community//platform/core-impl",
@@ -75,7 +74,6 @@ jvm_library(
     "@lib//:kotlinc-analysis-api-impl-base",
     "@lib//:kotlinc-low-level-api-fir",
     "@community//plugins/kotlin/completion/api",
-    "//codeServer/core",
     "@community//plugins/kotlin/fir",
     "@community//plugins/kotlin/navigation",
     "@community//plugins/kotlin/code-insight/impl-base:kotlin-codeInsight-shared",
@@ -92,6 +90,7 @@ jvm_library(
 
 jvm_library(
   name = "kotlin_test_lib",
+  testonly = True,
   module_name = "language-server.api.features.impl.kotlin",
   visibility = ["//visibility:public"],
   srcs = glob([], allow_empty = True),
@@ -101,7 +100,6 @@ jvm_library(
     "@community//libraries/kotlinx/coroutines/core:core_test_lib",
     "@community//libraries/kotlinx/serialization/json:json_test_lib",
     "@community//libraries/kotlinx/serialization/core:core_test_lib",
-    "//language-server/community/api.core:api.core_test_lib",
     "//language-server/community/features-impl/common:common_test_lib",
     "@community//platform/core-api:core_test_lib",
     "@community//platform/core-impl:core-impl_test_lib",
@@ -137,7 +135,6 @@ jvm_library(
     "@community//plugins/kotlin/completion/impl-shared:kotlin-completion-impl-shared_test_lib",
     "@community//plugins/kotlin/base/fir/code-insight:kotlin-codeInsight-base_test_lib",
     "@community//plugins/kotlin/completion/api:api_test_lib",
-    "//codeServer/core:core_test_lib",
     "@community//plugins/kotlin/fir:fir_test_lib",
     "@community//plugins/kotlin/navigation:navigation_test_lib",
     "@community//plugins/kotlin/code-insight/impl-base:kotlin-codeInsight-shared_test_lib",
@@ -152,3 +149,9 @@ jvm_library(
   ]
 )
 ### auto-generated section `build language-server.api.features.impl.kotlin` end
+
+### auto-generated section `iml language-server.api.features.impl.kotlin` start
+exports_files([
+  "language-server.api.features.impl.kotlin.iml",
+], visibility = ["//visibility:public"])
+### auto-generated section `iml language-server.api.features.impl.kotlin` end

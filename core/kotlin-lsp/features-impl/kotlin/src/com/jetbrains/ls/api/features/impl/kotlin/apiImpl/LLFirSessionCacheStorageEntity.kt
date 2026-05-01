@@ -8,7 +8,7 @@ import com.jetbrains.analyzer.api.FileUrl
 import com.jetbrains.analyzer.bootstrap.AnalyzerContainerBuilder
 import com.jetbrains.analyzer.kotlin.invalidate
 import com.jetbrains.analyzer.kotlin.registerLLFirSessionServices
-import com.jetbrains.ls.api.core.LSServer
+import com.jetbrains.ls.api.core.LSAnalysisContext
 import com.jetbrains.ls.api.core.project
 import com.jetbrains.ls.api.features.AnalyzerContainerType
 import com.jetbrains.ls.snapshot.api.impl.core.WorkspaceModelEntity
@@ -23,7 +23,7 @@ import org.jetbrains.kotlin.analysis.api.KaImplementationDetail
 import org.jetbrains.kotlin.analysis.api.KaPlatformInterface
 import org.jetbrains.kotlin.analysis.low.level.api.fir.LLFirInternals
 import org.jetbrains.kotlin.analysis.low.level.api.fir.caches.cleanable.NoOpValueReferenceCleaner
-import org.jetbrains.kotlin.analysis.low.level.api.fir.sessions.LLFirSessionCacheStorage
+import org.jetbrains.kotlin.analysis.low.level.api.fir.sessions.cache.LLFirSessionCacheStorage
 
 /**
  * Caches [LLFirSessionCacheStorage] from Kotlin LL FIR inside.
@@ -66,7 +66,7 @@ internal fun AnalyzerContainerBuilder.registerLLFirSessionServices(
     val storage = when (containerType) {
         AnalyzerContainerType.WRITE -> LLFirSessionCacheStorage.createEmpty {
             @Suppress("INVISIBLE_REFERENCE")
-            org.jetbrains.kotlin.analysis.low.level.api.fir.sessions.LLFirSessionCleaner(it.requestedDisposableOrNull)
+            org.jetbrains.kotlin.analysis.low.level.api.fir.sessions.cache.LLFirSessionCleaner(it.requestedDisposableOrNull)
         }
         else -> LLFirSessionCacheStorageEntity.single().storage
     }
@@ -74,12 +74,11 @@ internal fun AnalyzerContainerBuilder.registerLLFirSessionServices(
 }
 
 
-context(server: LSServer)
+context(server: LSAnalysisContext)
 suspend fun filesInvalidation(fileUrls: List<FileUrl>): context(ChangeScope) () -> Unit {
     return LLFirSessionCacheStorageEntity.singleOrNull()?.let { entity ->
-        val storage = server.withWriteAnalysisContext {
-            entity.storage.invalidate(fileUrls, project)
-        };
+        val storage = entity.storage.invalidate(fileUrls, project);
+
 
         {
             if (entity.exists()) {

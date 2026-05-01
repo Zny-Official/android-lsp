@@ -7,7 +7,9 @@
                     "type": "moduleSource"
                 },
                 {
-                    "type": "inheritedSdk"
+                    "type": "sdk",
+                    "name": "11",
+                    "kind": "jdk"
                 }
             ],
             "contentRoots": [
@@ -23,7 +25,9 @@
                     "type": "moduleSource"
                 },
                 {
-                    "type": "inheritedSdk"
+                    "type": "sdk",
+                    "name": "11",
+                    "kind": "jdk"
                 }
             ],
             "contentRoots": [
@@ -90,7 +94,9 @@
                     "type": "moduleSource"
                 },
                 {
-                    "type": "inheritedSdk"
+                    "type": "sdk",
+                    "name": "11",
+                    "kind": "jdk"
                 }
             ],
             "contentRoots": [
@@ -270,33 +276,14 @@
             }
         }
     ],
-    "javaSettings": [
+    "sdks": [
         {
-            "module": "untitled",
-            "inheritedCompilerOutput": false,
-            "excludeOutput": false,
-            "compilerOutput": null,
-            "compilerOutputForTests": null,
-            "languageLevelId": "JDK_11",
-            "manifestAttributes": {}
-        },
-        {
-            "module": "untitled.main",
-            "inheritedCompilerOutput": false,
-            "excludeOutput": false,
-            "compilerOutput": null,
-            "compilerOutputForTests": null,
-            "languageLevelId": "JDK_11",
-            "manifestAttributes": {}
-        },
-        {
-            "module": "untitled.test",
-            "inheritedCompilerOutput": false,
-            "excludeOutput": false,
-            "compilerOutput": null,
-            "compilerOutputForTests": null,
-            "languageLevelId": "JDK_11",
-            "manifestAttributes": {}
+            "name": "11",
+            "type": "jdk",
+            "version": "JDK_11",
+            "homePath": null,
+            "roots": [],
+            "additionalData": ""
         }
     ]
 }

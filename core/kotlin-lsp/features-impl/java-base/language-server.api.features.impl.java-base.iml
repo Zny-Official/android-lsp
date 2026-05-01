@@ -2,13 +2,13 @@
 <module type="JAVA_MODULE" version="4">
   <component name="FacetManager">
     <facet type="kotlin-language" name="Kotlin">
-      <configuration version="5" platform="JVM 21" allPlatforms="JVM [21]" useProjectSettings="false">
+      <configuration version="5" platform="JVM 25" allPlatforms="JVM [25]" useProjectSettings="false">
         <compilerSettings>
           <option name="additionalArguments" value="-Xjvm-default=all -opt-in=com.intellij.openapi.util.IntellijInternalApi -Xcontext-parameters -Xwhen-guards -opt-in=org.jetbrains.kotlin.analysis.api.KaExperimentalApi -opt-in=org.jetbrains.kotlin.analysis.api.KaIdeApi -opt-in=org.jetbrains.kotlin.analysis.api.KaContextParameterApi -opt-in=kotlin.contracts.ExperimentalContracts -XXLanguage:+AllowEagerSupertypeAccessibilityChecks -progressive" />
         </compilerSettings>
         <compilerArguments>
           <stringArguments>
-            <stringArg name="jvmTarget" arg="21" />
+            <stringArg name="jvmTarget" arg="25" />
             <stringArg name="apiVersion" arg="2.3" />
             <stringArg name="languageVersion" arg="2.3" />
           </stringArguments>
@@ -35,13 +35,16 @@
     <orderEntry type="module" module-name="intellij.libraries.kotlinx.serialization.core" />
     <orderEntry type="module" module-name="language-server.analyzer" />
     <orderEntry type="module" module-name="language-server.analyzer.java" />
-    <orderEntry type="module" module-name="language-server.api.core" />
+    <orderEntry type="module" module-name="language-server.api.impl.analyzer" />
     <orderEntry type="module" module-name="language-server.api.features.impl.common" />
     <orderEntry type="module" module-name="intellij.platform.core" />
+    <orderEntry type="module" module-name="intellij.platform.core.impl" />
     <orderEntry type="module" module-name="intellij.platform.analysis" />
     <orderEntry type="module" module-name="intellij.platform.lang" />
     <orderEntry type="module" module-name="intellij.java.impl" />
+    <orderEntry type="module" module-name="intellij.java.psi" />
     <orderEntry type="module" module-name="intellij.java.backend" />
+    <orderEntry type="module" module-name="intellij.java.frontback.psi" />
     <orderEntry type="module" module-name="language-server.api.features" />
     <orderEntry type="module" module-name="fleet.lsp.protocol" />
   </component>

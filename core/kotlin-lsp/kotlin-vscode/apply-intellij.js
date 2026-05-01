@@ -5,9 +5,9 @@
 const fs = require('fs');
 const path = require('path');
 const intellijVscodeDir = path.resolve(__dirname, '../../../../../language-server/intellij-vscode');
-const bundleType = process.env.BUNDLE_TYPE || 'kotlin-lsp';
+const bundleType = process.env.BUNDLE_TYPE || 'kotlin-server';
 
-if (bundleType === 'kotlin-lsp') return;
+if (bundleType === 'kotlin-server') return;
 if (!fs.existsSync(intellijVscodeDir)) return;
 
 function merge(target, patch) {
@@ -17,12 +17,17 @@ function merge(target, patch) {
 
     if (isObject(target) && isObject(patch)) {
         const result = {...target};
-        for (const key of Object.keys(patch)) {
-            if (key in target) {
-                result[key] = merge(target[key], patch[key]);
-            } else {
-                result[key] = patch[key];
-            }
+        for (const key in patch) {
+            result[key] = merge(target[key], patch[key]);
+        }
+        return result;
+    }
+
+    // merge(["a", "b", "c"], {"1": "B"}) -> ["a", "B", "c"]
+    if (Array.isArray(target) && isObject(patch)) {
+        const result = [...target];
+        for (const key in patch) {
+            result[+key] = merge(target[key], patch[key]);
         }
         return result;
     }
@@ -31,7 +36,7 @@ function merge(target, patch) {
 }
 
 function isObject(value) {
-    return value && typeof value === 'object' && !Array.isArray(value);
+    return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function applyPatch(targetPath, patchPath, outputPath) {
@@ -83,4 +88,8 @@ function copyOverlayDir(subdir) {
     copyOverlayDirectory(path.join(intellijVscodeDir, subdir), path.join(__dirname, subdir));
 }
 
-require(path.join(intellijVscodeDir, 'apply-intellij-impl.js'))(bundleType, patchPackageJson, copyOverlayDir);
+function copyFile(src, dest) {
+    fs.copyFileSync(path.join(intellijVscodeDir, src), path.join(__dirname, dest));
+}
+
+require(path.join(intellijVscodeDir, 'apply-intellij-impl.js'))(bundleType, patchPackageJson, copyOverlayDir, copyFile);

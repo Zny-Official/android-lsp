@@ -2,13 +2,13 @@
 <module type="JAVA_MODULE" version="4">
   <component name="FacetManager">
     <facet type="kotlin-language" name="Kotlin">
-      <configuration version="5" platform="JVM 21" allPlatforms="JVM [21]" useProjectSettings="false">
+      <configuration version="5" platform="JVM 25" allPlatforms="JVM [25]" useProjectSettings="false">
         <compilerSettings>
           <option name="additionalArguments" value="-Xjvm-default=all -opt-in=com.intellij.openapi.util.IntellijInternalApi -Xcontext-parameters -XXLanguage:+AllowEagerSupertypeAccessibilityChecks -progressive" />
         </compilerSettings>
         <compilerArguments>
           <stringArguments>
-            <stringArg name="jvmTarget" arg="21" />
+            <stringArg name="jvmTarget" arg="25" />
             <stringArg name="apiVersion" arg="2.3" />
             <stringArg name="languageVersion" arg="2.3" />
           </stringArguments>
@@ -39,8 +39,9 @@
     <orderEntry type="module" module-name="intellij.platform.workspace.jps" />
     <orderEntry type="module" module-name="intellij.platform.workspace.storage" />
     <orderEntry type="module" module-name="intellij.platform.util.jdom" />
-    <orderEntry type="module" module-name="language-server.api.core" />
+    <orderEntry type="module" module-name="language-server.analyzer" />
     <orderEntry type="module" module-name="intellij.platform.util" />
+    <orderEntry type="module" module-name="intellij.platform.util.ex" />
     <orderEntry type="module" module-name="intellij.libraries.kotlinx.serialization.core" />
     <orderEntry type="module" module-name="intellij.libraries.kotlinx.serialization.json" />
     <orderEntry type="module" module-name="intellij.libraries.kotlinx.coroutines.core" />
@@ -60,6 +61,9 @@
     <orderEntry type="module" module-name="language-server.workspace-import.gradle-plugin" />
     <orderEntry type="module" module-name="language-server.workspace-import.maven-plugin" />
     <orderEntry type="library" name="Gradle Tooling API" level="project" />
+    <orderEntry type="library" name="kotlin-gradle-plugin-idea" level="project" />
+    <orderEntry type="library" name="kotlin-tooling-core" level="project" />
+    <orderEntry type="library" name="kotlin-gradle-plugin-idea-proto" level="project" />
     <orderEntry type="module" module-name="language-server.analyzer.kotlin" />
     <orderEntry type="module" module-name="language-server.api.impl.analyzer" />
   </component>

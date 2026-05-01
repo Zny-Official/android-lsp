@@ -9,8 +9,12 @@ import com.intellij.openapi.projectRoots.impl.JavaHomeFinder
 import com.intellij.openapi.util.io.FileUtilRt
 import com.intellij.util.PathUtil
 import com.intellij.util.lang.JavaVersion
+import com.jetbrains.ls.imports.gradle.GradleWorkspaceImporter.LSP_GRADLE_JAVA_HOME_PROPERTY
 import com.jetbrains.ls.imports.gradle.compatibility.GradleJvmCompatibilityChecker
 import org.gradle.util.GradleVersion
+import org.jetbrains.kotlin.gradle.idea.proto.generated.tcs.IdeaKotlinDependencyProtoKt
+import org.jetbrains.kotlin.gradle.idea.tcs.IdeaKotlinDependency
+import org.jetbrains.kotlin.tooling.core.Extras
 import java.net.URI
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
@@ -27,6 +31,10 @@ object GradleToolingApiHelper {
     private val LOG = logger<GradleToolingApiHelper>()
 
     fun findTheMostCompatibleJdk(project: Project, projectDirectory: Path): String? {
+        val explicitJavaHomeValue = System.getProperty(LSP_GRADLE_JAVA_HOME_PROPERTY)
+        if (explicitJavaHomeValue != null) {
+            return explicitJavaHomeValue
+        }
         val gradleVersion = guessGradleVersion(projectDirectory) ?: return null
         val javaSdkType = SimpleJavaSdkType.getInstance()
         val suggestedJavaPath = JavaHomeFinder.suggestHomePaths(project)
@@ -41,24 +49,45 @@ object GradleToolingApiHelper {
 
     fun getInitScriptPath(): Path {
         val pluginResourcePath = "/META-INF/gradle-plugins/imports-gradle-plugin.properties"
+
         val pluginJar = PathManager.getResourceRoot(this::class.java, pluginResourcePath)
             ?: error("Corrupted installation: gradle plugin .properties not found")
+
+        /**
+         * Marker classes used to build an additional classpath for the plugin.
+         * This shall contain classes of jars necessary by the init script -(and its injected IdeaGradleLspPlugin)
+         */
+        val additionalPluginClasspathMarkers = setOf(
+            IdeaKotlinDependency::class.java,
+            IdeaKotlinDependencyProtoKt::class.java,
+            Extras::class.java
+        )
+
+        val additionalPluginClasspath = additionalPluginClasspathMarkers
+            .map { clazz -> PathManager.getResourceRoot(this::class.java.classLoader, clazz.name.replace(".", "/").plus(".class")) }
+            .map { path -> PathUtil.toSystemIndependentName(path) }
+            .toSet()
+
         return createTempFile("lsp-gradle-init", ".gradle").also {
             it.writeText(
-                """
-            initscript {
-                dependencies {
-                    repositories {
-                        mavenCentral()
+                buildString {
+                    appendLine("|initscript {")
+                    appendLine("|    dependencies {")
+                    appendLine("|        classpath files('${PathUtil.toSystemIndependentName(pluginJar)}')")
+                    additionalPluginClasspath.forEach { jarPath ->
+                        appendLine("|        classpath files('${jarPath.escapeStringLiteral()}')")
                     }
-                    classpath(files("${PathUtil.toSystemIndependentName(pluginJar)}"))
-                }
-            }
-            
-            apply plugin: com.jetbrains.ls.imports.gradle.IdeaGradleLspPlugin
-            """.trimIndent()
+                    appendLine("|    }")
+                    appendLine("|}")
+                    appendLine("|apply plugin: com.jetbrains.ls.imports.gradle.IdeaGradleLspPlugin")
+                }.trimMargin()
             )
         }
+    }
+
+    private fun String.escapeStringLiteral(): String {
+        return replace("\\", "\\\\")
+            .replace("'", "\\'")
     }
 
     private fun guessGradleVersion(projectDirectory: Path): GradleVersion? {

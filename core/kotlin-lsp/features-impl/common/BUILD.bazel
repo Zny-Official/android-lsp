@@ -31,7 +31,7 @@ jvm_library(
     "@community//platform/analysis-api:analysis",
     "@community//platform/core-api:core",
     "@community//platform/workspace/storage",
-    "//language-server/community/api.core",
+    "@community//platform/workspace/jps",
     "@community//platform/analysis-impl",
     "@community//platform/util",
     "//language-server/community/api.features",
@@ -39,6 +39,7 @@ jvm_library(
     "@community//platform/editor-ui-api:editor-ui",
     "@community//platform/core-impl",
     "@community//platform/editor-ui-ex:editor-ex",
+    "@community//java/java-psi-impl:psi-impl",
     "@community//libraries/kotlinx/serialization/json",
     "@community//libraries/kotlinx/serialization/core",
     "//language-server/analyzer",
@@ -55,15 +56,18 @@ jvm_library(
     "@community//platform/ide-core",
     "@community//libraries/kotlinx/collections-immutable:libraries-kotlinx-collections-immutable",
     "@community//platform/diagnostic/telemetry",
-    "@lib//:caffeine",
+    "@community//libraries/caffeine",
     "//language-server/api.impl.analyzer",
     "@community//fleet/rhizomedb",
     "//language-server/dap/platform",
+    "@community//fleet/rhizomedb.transactor",
+    "@community//platform/ide-core-impl",
   ]
 )
 
 jvm_library(
   name = "common_test_lib",
+  testonly = True,
   module_name = "language-server.api.features.impl.common",
   visibility = ["//visibility:public"],
   srcs = glob([], allow_empty = True),
@@ -74,7 +78,7 @@ jvm_library(
     "@community//platform/analysis-api:analysis_test_lib",
     "@community//platform/core-api:core_test_lib",
     "@community//platform/workspace/storage:storage_test_lib",
-    "//language-server/community/api.core:api.core_test_lib",
+    "@community//platform/workspace/jps:jps_test_lib",
     "@community//platform/analysis-impl:analysis-impl_test_lib",
     "@community//platform/util:util_test_lib",
     "//language-server/community/api.features:api.features_test_lib",
@@ -82,6 +86,7 @@ jvm_library(
     "@community//platform/editor-ui-api:editor-ui_test_lib",
     "@community//platform/core-impl:core-impl_test_lib",
     "@community//platform/editor-ui-ex:editor-ex_test_lib",
+    "@community//java/java-psi-impl:psi-impl_test_lib",
     "@community//libraries/kotlinx/serialization/json:json_test_lib",
     "@community//libraries/kotlinx/serialization/core:core_test_lib",
     "//language-server/analyzer:analyzer_test_lib",
@@ -98,9 +103,18 @@ jvm_library(
     "@community//platform/ide-core:ide-core_test_lib",
     "@community//libraries/kotlinx/collections-immutable:libraries-kotlinx-collections-immutable_test_lib",
     "@community//platform/diagnostic/telemetry:telemetry_test_lib",
+    "@community//libraries/caffeine:caffeine_test_lib",
     "//language-server/api.impl.analyzer:api.impl.analyzer_test_lib",
     "@community//fleet/rhizomedb:rhizomedb_test_lib",
     "//language-server/dap/platform:platform_test_lib",
+    "@community//fleet/rhizomedb.transactor:rhizomedb.transactor_test_lib",
+    "@community//platform/ide-core-impl:ide-core-impl_test_lib",
   ]
 )
 ### auto-generated section `build language-server.api.features.impl.common` end
+
+### auto-generated section `iml language-server.api.features.impl.common` start
+exports_files([
+  "language-server.api.features.impl.common.iml",
+], visibility = ["//visibility:public"])
+### auto-generated section `iml language-server.api.features.impl.common` end
