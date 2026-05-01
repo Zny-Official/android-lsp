@@ -324,7 +324,15 @@ async function getRunningJavaServerLspOptions(): Promise<ServerOptions | null> {
 
     const serverProcess = spawn(launcherPath, args, {
         env,
-        stdio: ['ignore', 'pipe', 'ignore'],
+        stdio: ['ignore', 'pipe', 'pipe'],
+    });
+
+    serverProcess.stderr?.on('data', (data: Buffer) => {
+        logInfo(`[server stderr] ${data.toString().trimEnd()}`);
+    });
+
+    serverProcess.on('exit', (code, signal) => {
+        logInfo(`Language server process exited (code=${code}, signal=${signal})`);
     });
 
     // Wait for the server to announce its port
