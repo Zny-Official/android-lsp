@@ -136,6 +136,28 @@ jobs:
     needs: [get-lsp-version, build-extension]
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Extract changelog for current version
+        id: changelog
+        run: |
+          VERSION="${GITHUB_REF_NAME}"
+          BODY=$(awk -v ver="$VERSION" '
+            /^## / {
+              if ($0 == "## " ver) { found=1 }
+              else if (found) { exit }
+            }
+            found { print }
+          ' CHANGELOG.md)
+          if [ -z "$BODY" ]; then
+            echo "ERROR: No changelog entry found for $VERSION in CHANGELOG.md"
+            exit 1
+          fi
+          echo "body<<EOF" >> $GITHUB_OUTPUT
+          echo "$BODY" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
@@ -147,34 +169,6 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: artifacts/*.vsix
-          body: |
-            ## Android LSP ${{ github.ref_name }}
-            
-            ### Kotlin LSP Version
-            Bundled Kotlin LSP: v${{ needs.get-lsp-version.outputs.version }}
-            
-            ### Downloads
-            
-            | Platform | File |
-            |----------|------|
-            | macOS (Intel) | `android-lsp-darwin-x64.vsix` |
-            | macOS (Apple Silicon) | `android-lsp-darwin-arm64.vsix` |
-            | Linux (x64) | `android-lsp-linux-x64.vsix` |
-            | Linux (ARM64) | `android-lsp-linux-arm64.vsix` |
-            | Windows (x64) | `android-lsp-win32-x64.vsix` |
-            | Windows (ARM64) | `android-lsp-win32-arm64.vsix` |
-            
-            ### Installation
-            
-            1. Download the `.vsix` file for your platform
-            2. Open VS Code
-            3. Press `Cmd+Shift+P` (macOS) or `Ctrl+Shift+P` (Windows/Linux)
-            4. Type "Install from VSIX" and select the downloaded file
-            
-            ### Requirements
-            
-            - VS Code 1.96.0 or higher
-            - Java 21 or higher (for running the language server)
-          generate_release_notes: true
+          body: ${{ steps.changelog.outputs.body }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
