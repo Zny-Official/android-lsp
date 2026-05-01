@@ -103,20 +103,21 @@ jobs:
         run: |
           BASE_URL="https://download-cdn.jetbrains.com/kotlin-lsp/${LSP_VERSION}/kotlin-server-${LSP_VERSION}"
           case "${{ matrix.lsp_arch }}" in
-            mac-x64)     URL="${BASE_URL}.sit" ;;
-            mac-aarch64) URL="${BASE_URL}-aarch64.sit" ;;
-            linux-x64)   URL="${BASE_URL}.tar.gz" ;;
-            linux-aarch64) URL="${BASE_URL}-aarch64.tar.gz" ;;
-            win-x64)     URL="${BASE_URL}.win.zip" ;;
-            win-aarch64) URL="${BASE_URL}-aarch64.win.zip" ;;
+            mac-x64)     URL="${BASE_URL}.sit"; EXT=".sit" ;;
+            mac-aarch64) URL="${BASE_URL}-aarch64.sit"; EXT="-aarch64.sit" ;;
+            linux-x64)   URL="${BASE_URL}.tar.gz"; EXT=".tar.gz" ;;
+            linux-aarch64) URL="${BASE_URL}-aarch64.tar.gz"; EXT="-aarch64.tar.gz" ;;
+            win-x64)     URL="${BASE_URL}.win.zip"; EXT=".win.zip" ;;
+            win-aarch64) URL="${BASE_URL}-aarch64.win.zip"; EXT="-aarch64.win.zip" ;;
           esac
           echo "Downloading from: ${URL}"
-          curl -L -o kotlin-lsp-archive "${URL}"
+          curl -L -o "kotlin-lsp-archive${EXT}" "${URL}"
+          echo "lsp_archive=kotlin-lsp-archive${EXT}" >> $GITHUB_ENV
 
       - name: Build and package extension
         working-directory: vscode-plugin/android-lsp
         env:
-          LSP_ZIP_PATH: ${{ github.workspace }}/kotlin-lsp-archive
+          LSP_ZIP_PATH: ${{ github.workspace }}/${{ env.lsp_archive }}
         run: |
           # Install dependencies
           npm ci
