@@ -16,8 +16,11 @@ import lombok.Singular;
 @Builder(toBuilder = true)
 public record Library(
     String name,
+    String level,
+    String module,
     LibraryType type,
     @Singular Collection<SourceRoot> roots,
+    @Singular Collection<String> excludedRoots,
     Properties properties) {
 
   public enum LibraryType {

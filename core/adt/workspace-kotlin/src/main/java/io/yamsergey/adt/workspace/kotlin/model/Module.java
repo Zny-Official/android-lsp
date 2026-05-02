@@ -13,6 +13,7 @@ import lombok.Builder;
 @Builder(toBuilder = true)
 public record Module(
         String name,
+        String type,
         Collection<Dependency> dependencies,
         Collection<ContentRoot> contentRoots,
         Collection<Object> facets) {

@@ -1,6 +1,9 @@
 package io.yamsergey.adt.workspace.kotlin.model;
 
+import java.util.Collection;
+
 import lombok.Builder;
+import lombok.Singular;
 
 /**
  * SDK definition for the workspace.
@@ -13,5 +16,13 @@ public record Sdk(
         String name,
         String type,
         String version,
-        String homePath) {
+        String homePath,
+        @Singular Collection<SdkRoot> roots,
+        String additionalData) {
+
+    @Builder(toBuilder = true)
+    public record SdkRoot(
+            String url,
+            String type) {
+    }
 }

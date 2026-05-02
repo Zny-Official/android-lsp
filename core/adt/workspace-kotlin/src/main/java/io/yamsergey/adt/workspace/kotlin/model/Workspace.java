@@ -16,5 +16,6 @@ public record Workspace(
         Collection<Module> modules,
         Collection<Library> libraries,
         Collection<Sdk> sdks,
-        Collection<KotlinSettings> kotlinSettings) {
+        Collection<KotlinSettings> kotlinSettings,
+        Collection<JavaSettings> javaSettings) {
 }

@@ -31,6 +31,7 @@ import io.yamsergey.adt.tools.android.model.module.ResolvedModule;
 import io.yamsergey.adt.tools.android.model.project.Project;
 import io.yamsergey.adt.workspace.kotlin.model.ContentRoot;
 import io.yamsergey.adt.workspace.kotlin.model.Dependency;
+import io.yamsergey.adt.workspace.kotlin.model.JavaSettings;
 import io.yamsergey.adt.workspace.kotlin.model.KotlinSettings;
 import io.yamsergey.adt.workspace.kotlin.model.Library;
 import io.yamsergey.adt.workspace.kotlin.model.Module;
@@ -61,12 +62,14 @@ public class ProjectToWorkspaceConverter {
         Collection<Library> libraries = extractLibraries(project.modules());
         Collection<Sdk> sdks = List.of();
         Collection<KotlinSettings> kotlinSettings = generateKotlinSettings(project.modules());
+        Collection<JavaSettings> javaSettings = List.of();
 
         return Workspace.builder()
             .modules(modules)
             .libraries(libraries)
             .sdks(sdks)
             .kotlinSettings(kotlinSettings)
+            .javaSettings(javaSettings)
             .build();
     }
 
@@ -106,6 +109,7 @@ public class ProjectToWorkspaceConverter {
 
         return Module.builder()
             .name(moduleName)
+            .type("JAVA_MODULE")
             .dependencies(dependencies)
             .contentRoots(contentRoots)
             .facets(List.of())
@@ -119,6 +123,7 @@ public class ProjectToWorkspaceConverter {
 
         return Module.builder()
             .name(moduleName)
+            .type("JAVA_MODULE")
             .dependencies(dependencies)
             .contentRoots(contentRoots)
             .facets(List.of())
@@ -139,6 +144,7 @@ public class ProjectToWorkspaceConverter {
 
         return Module.builder()
             .name(moduleName)
+            .type("JAVA_MODULE")
             .dependencies(allDependencies)
             .contentRoots(contentRoots)
             .facets(List.of())
@@ -159,6 +165,7 @@ public class ProjectToWorkspaceConverter {
 
         return Module.builder()
             .name(moduleName)
+            .type("JAVA_MODULE")
             .dependencies(allDependencies)
             .contentRoots(contentRoots)
             .facets(List.of())
@@ -394,8 +401,10 @@ public class ProjectToWorkspaceConverter {
 
         return Library.builder()
             .name(name)
+            .level("project")
             .type(type)
             .roots(roots)
+            .excludedRoots(List.of())
             .properties(Library.Properties.builder().attributes(attributes).build())
             .build();
     }
@@ -435,6 +444,20 @@ public class ProjectToWorkspaceConverter {
             .compilerArguments(compilerArgs)
             .version(5)
             .flushNeeded(false)
+            // Required fields for Kotlin LSP compatibility
+            .configFileItems(List.of())
+            .implementedModuleNames(List.of())
+            .dependsOnModuleNames(List.of())
+            .additionalVisibleModuleNames(List.of())
+            .sourceSetNames(List.of())
+            .isTestModule(false)
+            .pureKotlinSourceFolders(List.of())
+            .additionalArguments("")
+            .scriptTemplates("")
+            .scriptTemplatesClasspath("")
+            .outputDirectoryForJsLibraryFiles("")
+            .targetPlatform("JVM_1_8")
+            .externalSystemRunTasks(List.of())
             .build();
     }
 
